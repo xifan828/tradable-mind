@@ -8,7 +8,10 @@ import pandas as pd
 import os
 import re
 import numpy as np
-from src.utils.constants import PIP_INTERVALS, DECIMAL_PLACES
+import math
+import base64
+import io
+from src.utils.constants import DECIMAL_PLACES
 
 class TechnicalCharts:
     def __init__(self, currency_pair: str, interval: str, df: pd.DataFrame, size: int, chart_name: str):
@@ -25,8 +28,30 @@ class TechnicalCharts:
         sanitized = re.sub(r"[\\/:*?\"<>|]+", "_", name.strip())
         return sanitized or "chart"
     
+    @staticmethod
+    def _compute_pip_interval(y_min: float, y_max: float, decimal_places: int, max_ticks: int = 10) -> float:
+        """Derive a "nice" tick interval so we draw at most `max_ticks` labels."""
+        min_step = 10 ** (-decimal_places)
+        span = max(y_max - y_min, min_step)
+        target_interval = span / max(max_ticks - 1, 1)
+        if not math.isfinite(target_interval) or target_interval <= 0:
+            target_interval = min_step
+
+        exponent = math.floor(math.log10(target_interval)) if target_interval > 0 else 0
+        base = 10 ** exponent
+        for multiplier in (1, 2, 5):
+            candidate = multiplier * base
+            if target_interval <= candidate:
+                interval = candidate
+                break
+        else:
+            interval = 10 * base
+
+        interval = max(interval, min_step)
+        step_count = max(1, math.ceil(interval / min_step))
+        return step_count * min_step
+    
     def plot_chart(self, 
-                return_binary: bool = True,
                EMA10: bool = False,
                EMA20: bool = False,
                EMA50: bool = False,
@@ -37,6 +62,7 @@ class TechnicalCharts:
                ATR14: bool = False,
                shading: bool = False):
         # collect current data
+        # NOTE: `return_binary` retained for backward compatibility; output is always base64.
         data = {}
         decimal_places = DECIMAL_PLACES[self.currency_pair]
 
@@ -196,12 +222,25 @@ class TechnicalCharts:
         #         return str(x)
 
         # Calculate y-axis ticks for the price chart.
-        y_min, y_max = ax_price.get_ylim()
+        raw_y_min, raw_y_max = ax_price.get_ylim()
+        max_ticks = 10
+        pip_interval = self._compute_pip_interval(raw_y_min, raw_y_max, decimal_places, max_ticks=max_ticks)
 
-        pip_interval = PIP_INTERVALS[self.currency_pair][self.interval]
-        y_min = round(y_min / pip_interval) * pip_interval
-        y_max = round(y_max / pip_interval) * pip_interval
-        y_ticks = np.arange(y_min, y_max + pip_interval, pip_interval)
+        def _align_bounds(interval: float):
+            min_aligned = math.floor(raw_y_min / interval) * interval
+            max_aligned = math.ceil(raw_y_max / interval) * interval
+            return min_aligned, max_aligned
+
+        y_min, y_max = _align_bounds(pip_interval)
+        tick_count = int(round((y_max - y_min) / pip_interval)) + 1
+        guard = 0
+        while tick_count > max_ticks and guard < 6:
+            pip_interval *= 2
+            y_min, y_max = _align_bounds(pip_interval)
+            tick_count = int(round((y_max - y_min) / pip_interval)) + 1
+            guard += 1
+
+        y_ticks = np.arange(y_min, y_max + (pip_interval / 2), pip_interval)
         # num_ticks = int(round((y_max - y_min) / pip_interval)) + 1
         # y_ticks = np.linspace(y_min, y_max, num_ticks)
 
@@ -244,18 +283,14 @@ class TechnicalCharts:
         safe_name = self._sanitize_chart_name(self.chart_name)
         chart_path = os.path.join(self.chart_root_path, f"{safe_name}.png")
 
-        binary_data = None
-        if return_binary:
-            import io
-            buf = io.BytesIO()
-            fig.savefig(buf, format='png')
-            buf.seek(0)
-            binary_data = buf.getvalue()
-            with open(chart_path, 'wb') as chart_file:
-                chart_file.write(binary_data)
-            buf.close()
-        else:
-            fig.savefig(chart_path)
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png')
+        buf.seek(0)
+        chart_bytes = buf.getvalue()
+        encoded_chart = base64.b64encode(chart_bytes).decode('utf-8')
+        with open(chart_path, 'wb') as chart_file:
+            chart_file.write(chart_bytes)
+        buf.close()
 
         plt.close(fig)
-        return data, binary_data
+        return data, encoded_chart

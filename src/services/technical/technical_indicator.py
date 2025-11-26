@@ -4,7 +4,7 @@ from src.utils.charts import TechnicalCharts
 from typing import Literal
 import pandas as pd
 
-class TechnicalDataService:
+class TechnicalIndicatorService:
     def __init__(self, currency_pair: str, interval: str):
         self.currecy_pair = currency_pair
         self.interval = interval
@@ -48,8 +48,7 @@ class TechnicalDataService:
             df: pd.DataFrame, 
             size: int, 
             analysis_type: Literal["ema", "rsi", "macd", "atr"],
-            return_binary: bool = True
-            ) -> bytes:
+            ) -> str:
         chart_name = f"{self.currecy_pair}_{self.interval}_{analysis_type}"
         chart = TechnicalCharts(
             currency_pair=self.currecy_pair,
@@ -59,36 +58,21 @@ class TechnicalDataService:
             chart_name=chart_name
         )
         if analysis_type == "ema":
-            _, binary_data = chart.plot_chart(return_binary=return_binary, EMA20=True, EMA50=True, EMA100=True)
+            _, encoded_chart = chart.plot_chart(EMA20=True, EMA50=True, EMA100=True)
         elif analysis_type == "rsi":
-            _, binary_data = chart.plot_chart(return_binary=return_binary, RSI14=True)
+            _, encoded_chart = chart.plot_chart(RSI14=True)
         elif analysis_type == "macd":
-            _, binary_data = chart.plot_chart(return_binary=return_binary, MACD=True)
+            _, encoded_chart = chart.plot_chart(MACD=True)
         elif analysis_type == "atr":
-            _, binary_data = chart.plot_chart(return_binary=return_binary, ATR14=True)
+            _, encoded_chart = chart.plot_chart(ATR14=True)
         elif analysis_type == "normal":
-            _, binary_data = chart.plot_chart(return_binary=return_binary)
+            _, encoded_chart = chart.plot_chart()
         else:
             raise ValueError("Invalid analysis type. Choose 'ema', 'rsi', 'macd', or 'atr'.")
         
-        return binary_data
+        return encoded_chart
 
 
-if __name__ == "__main__":
-    pair = "USD/JPY"
-    size = 96
-    interval = "1h"
-    service = TechnicalDataService(currency_pair=pair, interval=interval)
-    
-    # Example usage:
-    data = service.prepare_data(data_source="TwelveData", outputsize=size)
-    print(data.head())
-    print(data.shape)
-    # print(data.tail())
-    binary_data = service.prepare_chart(data, size=size, analysis_type="ema", return_binary=True)
-    print(binary_data[:100]) 
-    print(type(binary_data))  
-    
 
 
         

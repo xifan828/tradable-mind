@@ -4,6 +4,20 @@ class TechnicalIndicators:
     def __init__(self):
         pass
     
+    @staticmethod
+    def get_context(df: pd.DataFrame, decimal_places: int, analysis_type: str, period: int = 20) -> str:
+        analysis_type = analysis_type.lower()
+        if analysis_type == "ema":
+            return TechnicalIndicators.get_ma_context(df, decimal_places, period)
+        elif analysis_type == "macd":
+            return TechnicalIndicators.get_macd_context(df, decimal_places, period)
+        elif analysis_type == "atr":
+            return TechnicalIndicators.get_atr_context(df, decimal_places)
+        elif analysis_type == "rsi":
+            return TechnicalIndicators.get_rsi_context(df, decimal_places)
+        else:
+            raise ValueError(f"Unsupported analysis type: {analysis_type}")
+    
     # @staticmethod
     # def calculate_technical_indicators(df, sma=False, ema=True, rsi=True, macd=True, roc=True, bbands=True, atr=True) -> pd.DataFrame:
     #     df = df.copy()
