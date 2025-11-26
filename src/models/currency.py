@@ -10,6 +10,11 @@ class Currency(str, Enum):
     EUR = "EUR"
     USD = "USD"
     JPY = "JPY"
+    GBP = "GBP"
+    AUD = "AUD"
+    CNH = "CNH"
+    XAU = "XAU"
+    BTC = "BTC"
     
     @classmethod
     def from_string(cls, value: str) -> "Currency":
@@ -51,11 +56,13 @@ class CurrencyPair:
         """Developer representation."""
         return f"CurrencyPair(base={self.base.value}, quote={self.quote.value})"
     
-    def to_slash_format(self) -> str:
+    @property
+    def slash_format(self) -> str:
         """Return pair in slash format (e.g., 'EUR/USD')."""
         return f"{self.base.value}/{self.quote.value}"
     
-    def to_underscore_format(self) -> str:
+    @property
+    def underscore_format(self) -> str:
         """Return pair in underscore format (e.g., 'eur_usd')."""
         return f"{self.base.value.lower()}_{self.quote.value.lower()}"
     
