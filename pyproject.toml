@@ -12,5 +12,5 @@ dependencies = [
     "pandas",
     "python-dotenv",
     "matplotlib",
-    "mplfinance"
+    "mplfinance",
 ]

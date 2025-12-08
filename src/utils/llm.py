@@ -11,6 +11,10 @@ free_keys = [
     os.getenv("GEMINI_API_KEY_XIFAN_2"),
     os.getenv("GEMINI_API_KEY_XIFAN_3"),
     os.getenv("GEMINI_API_KEY_XIFAN_4"),
+    os.getenv("GEMINI_API_KEY_XIFAN_5"),
+    os.getenv("GEMINI_API_KEY_XIFAN_6"),
+    os.getenv("GEMINI_API_KEY_XIFAN_7"),
+    os.getenv("GEMINI_API_KEY_XIFAN_8"),
     os.getenv("GEMINI_API_KEY_CONG_1"),
     os.getenv("GEMINI_API_KEY_CONG_2"),
 ]
@@ -102,9 +106,14 @@ def invoke_gemini_model(
     raise RuntimeError("No Gemini API keys configured")
 
 
-
-
-
+def parse_langchain_ai_message(ai_message: AIMessage) -> str:
+    try:
+        if isinstance(ai_message.content, list) and ai_message.content and isinstance(ai_message.content[0], dict):
+            return ai_message.content[0].get("text", "")
+        else:
+            return str(ai_message.content)
+    except Exception:
+        raise RuntimeError("Failed to parse Langchain AIMessage content: {ai_message.content}")
 
 
 
