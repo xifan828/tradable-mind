@@ -14,3 +14,5 @@ notebook/
 
 # Environment files
 .env
+
+data/
