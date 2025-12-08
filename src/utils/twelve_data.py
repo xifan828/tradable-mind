@@ -62,7 +62,9 @@ class TwelveData:
             interval=self.interval,
             outputsize=self.outputsize,
             exchange=self.exchange,
-            timezone=self.timezone
+            timezone=self.timezone,
+            start_date=self.start_date,
+            end_date=self.end_date,
         )
         df = (
             ts
@@ -109,11 +111,11 @@ if __name__ == "__main__":
     # Example usage
     # td = TwelveData(currency_pair="GBP/USD", interval="1h", outputsize=200, exchange="OANDA")
     # data = td.get_data()
-    # print("head")
-    # print(data.head())
-    # print("tail")
-    # print(data.tail())
-    td = TwelveData(currency_pair="BTC/USD", interval="1h", outputsize=10, exchange="Coinbase Pro")
+
+    # td = TwelveData(currency_pair="BTC/USD", interval="1h", outputsize=96, exchange="Coinbase Pro", end_date="2025-12-01 13:00:00")
+    td = TwelveData(currency_pair="BTC/USD", interval="15min", outputsize=20, exchange="Coinbase Pro")
     data = td.get_data_with_ti()
     print(data.head(20))
-    print(data.info())
+    # ti_endpoint = td.client.get_technical_indicators_list()
+    # print(ti_endpoint.as_json())
+   # print(data.info())
