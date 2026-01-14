@@ -16,3 +16,6 @@ notebook/
 .env
 
 data/
+
+# IDE
+.vscode/
