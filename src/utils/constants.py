@@ -234,3 +234,30 @@ DECIMAL_PLACES = {
             "XAU/USD": 1,
             "BTC/USD": 0,
         }
+
+
+def get_decimal_places(symbol: str) -> int:
+    """Get decimal places for a symbol.
+
+    First checks static lookup table, then falls back to metadata service
+    which queries TwelveData API.
+    """
+    if symbol in DECIMAL_PLACES:
+        return DECIMAL_PLACES[symbol]
+    # Fall back to metadata service for unknown symbols
+    from src.services.asset_metadata import get_metadata_service
+    return get_metadata_service().get_decimal_places(symbol)
+
+
+def get_pip_interval(symbol: str, interval: str) -> float:
+    """Get pip/tick interval for a symbol and timeframe.
+
+    First checks static lookup table, then computes a sensible default
+    based on decimal places.
+    """
+    if symbol in PIP_INTERVALS and interval in PIP_INTERVALS[symbol]:
+        return PIP_INTERVALS[symbol][interval]
+    # Compute a sensible default based on decimal places
+    decimal_places = get_decimal_places(symbol)
+    # Default to minimum tick size
+    return 10 ** (-decimal_places)

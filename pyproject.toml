@@ -1,7 +1,7 @@
 [project]
 name = "tradable-mind"
 version = "0.1.0"
-description = "Add your description here"
+description = "AI-powered technical analysis platform for currency trading signals using LangGraph and Google Gemini"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -13,4 +13,8 @@ dependencies = [
     "python-dotenv",
     "matplotlib",
     "mplfinance",
+    "ipykernel>=7.1.0",
+    "ta-lib>=0.6.8",
+    "streamlit>=1.29.0",
+    "plotly>=5.18.0",
 ]

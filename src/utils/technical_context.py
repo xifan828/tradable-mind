@@ -15,6 +15,8 @@ class TechnicalIndicators:
             return TechnicalIndicators.get_atr_context(df, decimal_places)
         elif analysis_type == "rsi":
             return TechnicalIndicators.get_rsi_context(df, decimal_places)
+        elif analysis_type in ["bb", "pivot", "fibonacci", "normal"]:
+            return ""
         else:
             raise ValueError(f"Unsupported analysis type: {analysis_type}")
     
