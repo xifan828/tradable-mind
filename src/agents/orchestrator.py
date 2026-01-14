@@ -1,0 +1,26 @@
+from langchain.agents import create_agent
+from langchain.agents.middleware import dynamic_prompt, ModelRequest
+
+from src.states_and_contexts.technical_analysis import OrchestratorState, OrchestratorContext
+from src.prompts.technical_analysis import ORCHESTRATOR_SYSTEM_PROMPT
+from src.tools.todo_tools import write_todos, read_todos
+from src.tools.think_tool import think_tool
+from src.tools.task_tool import task
+from src.agents.quant_agent import dynamic_model_from_context
+
+@dynamic_prompt
+def orchestrator_system_prompt_from_context(request: ModelRequest) -> str:
+    return ORCHESTRATOR_SYSTEM_PROMPT.format(
+        max_concurrent_tasks=request.runtime.context.max_concurrent_tasks,
+        max_research_iterations=request.runtime.context.max_research_iterations,
+        min_research_iterations=request.runtime.context.min_research_iterations
+    )
+
+orchestrator_agent = create_agent(
+    model=None,
+    tools=[write_todos, read_todos, think_tool, task],
+    system_prompt=ORCHESTRATOR_SYSTEM_PROMPT,
+    state_schema=OrchestratorState,
+    context_schema=OrchestratorContext,
+    middleware=[dynamic_model_from_context, orchestrator_system_prompt_from_context]
+)

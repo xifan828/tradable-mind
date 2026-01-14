@@ -27,6 +27,7 @@ gemini_model_map = {
     "2.5_pro": "models/gemini-2.5-pro",
     "2.5_flash": "models/gemini-flash-latest",
     "3_pro": "models/gemini-3-pro-preview",
+    "3_flash": "models/gemini-3-flash-preview"
 }
 
 async def ainvoke_gemini_model(
@@ -82,7 +83,8 @@ def invoke_gemini_model(
 
     keys_to_try = list(free_pool)
     if include_paid_key:
-        keys_to_try.extend(key for key in paid_keys if key)
+        #keys_to_try.extend(key for key in paid_keys if key)
+        keys_to_try = paid_keys
 
     last_error: Exception | None = None
 
@@ -114,11 +116,3 @@ def parse_langchain_ai_message(ai_message: AIMessage) -> str:
             return str(ai_message.content)
     except Exception:
         raise RuntimeError("Failed to parse Langchain AIMessage content: {ai_message.content}")
-
-
-
-
-
-
-
-
