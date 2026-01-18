@@ -1,5 +1,6 @@
 """Sidebar component with input controls."""
 
+import uuid
 import streamlit as st
 
 
@@ -129,6 +130,7 @@ def render_sidebar() -> dict:
         if clear_clicked:
             st.session_state.messages = []
             st.session_state.pending_tasks = {}
+            st.session_state.thread_id = str(uuid.uuid4())  # New thread for fresh conversation
             st.rerun()
 
         # === Return Settings ===
