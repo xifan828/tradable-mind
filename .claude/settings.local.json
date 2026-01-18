@@ -13,7 +13,9 @@
       "Bash(uv run streamlit:*)",
       "Bash(timeout /t 5)",
       "Bash(curl:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(git -C D:Projectstradable-mind status)",
+      "Bash(git branch:*)"
     ]
   }
 }

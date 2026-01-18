@@ -44,6 +44,10 @@ def initialize_session_state():
         "chart_loaded": False,
         "pivot_levels": None,
         "fibonacci_levels": None,
+        # Agent configuration
+        "min_research_iterations": 2,
+        "max_research_iterations": 6,
+        "max_concurrent_tasks": 4,
     }
 
     for key, value in defaults.items():
@@ -124,10 +128,46 @@ def render_chart_section(settings: dict):
     })
 
 
+def render_agent_settings():
+    """Render agent configuration settings in an expander."""
+    with st.expander("Agent Settings", expanded=False):
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.session_state.min_research_iterations = st.number_input(
+                "Min Iterations",
+                min_value=1,
+                max_value=10,
+                value=st.session_state.min_research_iterations,
+                help="Minimum research iterations before concluding"
+            )
+
+        with col2:
+            st.session_state.max_research_iterations = st.number_input(
+                "Max Iterations",
+                min_value=1,
+                max_value=20,
+                value=st.session_state.max_research_iterations,
+                help="Maximum research iterations allowed"
+            )
+
+        with col3:
+            st.session_state.max_concurrent_tasks = st.number_input(
+                "Max Concurrent Tasks",
+                min_value=1,
+                max_value=10,
+                value=st.session_state.max_concurrent_tasks,
+                help="Maximum tasks to run in parallel"
+            )
+
+
 def render_chat_section(settings: dict):
     """Render the chat section with input."""
     st.markdown("---")
     st.markdown("### AI Analysis Chat")
+
+    # Agent settings
+    render_agent_settings()
 
     # Display chat history
     render_chat_history()

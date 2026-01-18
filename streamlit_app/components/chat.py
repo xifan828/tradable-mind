@@ -1,5 +1,6 @@
 """Chat interface component with streaming display and task iteration grouping."""
 
+import uuid
 import streamlit as st
 from typing import Any
 from collections import defaultdict
@@ -23,6 +24,8 @@ def initialize_chat_state():
         st.session_state.current_iteration = None  # Current iteration being built
     if "iteration_count" not in st.session_state:
         st.session_state.iteration_count = 0
+    if "thread_id" not in st.session_state:
+        st.session_state.thread_id = str(uuid.uuid4())  # Unique ID for conversation
 
 
 def extract_text_content(content: Any) -> str:
@@ -427,7 +430,12 @@ Current context:
 - Chart interval: {current_interval}
 """
 
-    context = create_context(gemini_api_key)
+    context = create_context(
+        gemini_api_key,
+        min_research_iterations=st.session_state.min_research_iterations,
+        max_research_iterations=st.session_state.max_research_iterations,
+        max_concurrent_tasks=st.session_state.max_concurrent_tasks,
+    )
 
     status_placeholder = st.empty()
     todos_placeholder = st.empty()
@@ -444,7 +452,7 @@ Current context:
     with status_placeholder:
         st.info("Agent is analyzing...", icon=":material/psychology:")
 
-    async for event in stream_agent_response(enhanced_query, context):
+    async for event in stream_agent_response(enhanced_query, context, st.session_state.thread_id):
         handle_stream_event(event, placeholders)
 
         if event.event_type == "done":

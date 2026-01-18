@@ -1,5 +1,6 @@
 from langchain.agents import create_agent
 from langchain.agents.middleware import dynamic_prompt, ModelRequest
+from langgraph.checkpoint.memory import InMemorySaver
 
 from src.states_and_contexts.technical_analysis import OrchestratorState, OrchestratorContext
 from src.prompts.technical_analysis import ORCHESTRATOR_SYSTEM_PROMPT
@@ -16,11 +17,14 @@ def orchestrator_system_prompt_from_context(request: ModelRequest) -> str:
         min_research_iterations=request.runtime.context.min_research_iterations
     )
 
+checkpointer = InMemorySaver()
+
 orchestrator_agent = create_agent(
     model=None,
     tools=[write_todos, read_todos, think_tool, task],
     system_prompt=ORCHESTRATOR_SYSTEM_PROMPT,
     state_schema=OrchestratorState,
     context_schema=OrchestratorContext,
-    middleware=[dynamic_model_from_context, orchestrator_system_prompt_from_context]
+    middleware=[dynamic_model_from_context, orchestrator_system_prompt_from_context],
+    checkpointer=checkpointer
 )

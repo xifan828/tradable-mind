@@ -22,6 +22,7 @@ class StreamEvent:
 async def stream_agent_response(
     query: str,
     context: OrchestratorContext,
+    thread_id: str,
 ) -> AsyncGenerator[StreamEvent, None]:
     """
     Stream agent responses with tool calls and results.
@@ -29,6 +30,7 @@ async def stream_agent_response(
     Args:
         query: User's question
         context: OrchestratorContext with API key and config
+        thread_id: Unique identifier for the conversation thread
 
     Yields:
         StreamEvent objects for each event (tool calls, results, text)
@@ -39,6 +41,7 @@ async def stream_agent_response(
         # Use stream_mode="updates" to get step-by-step updates
         async for event in orchestrator_agent.astream(
             {"messages": [human_message]},
+            config={"configurable": {"thread_id": thread_id}},
             context=context,
             stream_mode="updates"
         ):
@@ -144,6 +147,7 @@ def process_message(msg: Any, node_name: str) -> list[StreamEvent]:
 def run_agent_sync(
     query: str,
     context: OrchestratorContext,
+    thread_id: str,
     event_callback: callable
 ) -> str:
     """
@@ -154,6 +158,7 @@ def run_agent_sync(
     Args:
         query: User's question
         context: OrchestratorContext
+        thread_id: Unique identifier for the conversation thread
         event_callback: Function to call with each StreamEvent
 
     Returns:
@@ -166,7 +171,7 @@ def run_agent_sync(
 
     async def run():
         nonlocal final_response
-        async for event in stream_agent_response(query, context):
+        async for event in stream_agent_response(query, context, thread_id):
             event_callback(event)
             if event.event_type == "text":
                 final_response = event.content
@@ -179,11 +184,16 @@ def run_agent_sync(
     return final_response
 
 
-def create_context(gemini_api_key: str) -> OrchestratorContext:
-    """Create an OrchestratorContext with the given API key."""
+def create_context(
+    gemini_api_key: str,
+    min_research_iterations: int = 2,
+    max_research_iterations: int = 6,
+    max_concurrent_tasks: int = 4,
+) -> OrchestratorContext:
+    """Create an OrchestratorContext with the given API key and settings."""
     return OrchestratorContext(
         api_key=gemini_api_key,
-        min_research_iterations=2,
-        max_research_iterations=6,
-        max_concurrent_tasks=4
+        min_research_iterations=min_research_iterations,
+        max_research_iterations=max_research_iterations,
+        max_concurrent_tasks=max_concurrent_tasks
     )
