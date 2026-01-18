@@ -12,7 +12,8 @@
       "Bash(uv sync:*)",
       "Bash(uv run streamlit:*)",
       "Bash(timeout /t 5)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(timeout:*)"
     ]
   }
 }
