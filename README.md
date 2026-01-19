@@ -1,17 +1,18 @@
 # Tradable Mind
 
-AI-powered technical analysis platform for currency trading signals using LangGraph and Google Gemini.
+AI-powered technical analysis platform using an **Orchestrator + Subagents** multi-agent framework built with LangGraph, LangChain, and Google Gemini.
 
 ## Overview
 
-Tradable Mind analyzes financial charts using computer vision and generates trading signals on a quantitative scale from -1.0 (Strong Sell) to +1.0 (Strong Buy). The system uses a LangGraph-based agentic workflow that processes multiple technical indicators in parallel.
+Tradable Mind is an intelligent trading assistant that analyzes financial charts and market data through coordinated AI agents. The system uses a multi-agent architecture where an Orchestrator Agent decomposes complex trading queries and delegates tasks to specialized Chart and Quant agents.
 
 ## Features
 
-- **Multi-timeframe analysis** - Analyze across different intervals (1h, 4h, daily, etc.)
-- **Multiple technical indicators** - EMA, RSI, MACD, ATR analysis
-- **Vision-based interpretation** - Charts processed by Gemini's multimodal capabilities
-- **Parallel processing** - Indicators analyzed concurrently for efficiency
+- **Multi-agent architecture** - Orchestrator coordinates Chart and Quant agents for comprehensive analysis
+- **Vision-based chart analysis** - Gemini's multimodal capabilities for objective chart interpretation
+- **Quantitative analysis** - Data-driven analysis with sandboxed Python code execution
+- **Multiple technical indicators** - EMA, RSI, MACD, ATR, Bollinger Bands, Pivot Points, Fibonacci Levels
+- **Interactive web interface** - Streamlit app with real-time chart visualization and AI chat
 - **Multi-asset support** - Forex, crypto, and commodities via TwelveData
 
 ## Requirements
@@ -19,7 +20,7 @@ Tradable Mind analyzes financial charts using computer vision and generates trad
 - Python 3.11+
 - [uv](https://docs.astral.sh/uv/) package manager
 - TwelveData API key
-- Google Gemini API key(s)
+- Google Gemini API key
 
 ## Installation
 
@@ -33,73 +34,99 @@ Create a `.env` file in the project root:
 
 ```env
 TD_API_KEY=your_twelvedata_api_key
-GEMINI_API_KEY_1=your_gemini_api_key
+GEMINI_API_KEY=your_gemini_api_key
 ```
-
-Multiple Gemini API keys are supported for key rotation (e.g., `GEMINI_API_KEY_2`, `GEMINI_API_KEY_3`).
 
 ## Usage
 
-```python
-from src.services.technical.technical_analysis_graph import technical_analysis_graph
-from src.models.technical_analysis_model import TechnicalAnalysisInput
-from src.models.currency import Currency, CurrencyPair
-
-pair = CurrencyPair(base=Currency.BTC, quote=Currency.USD)
-input_data = TechnicalAnalysisInput(
-    currency_pair=pair,
-    intervals=["1h", "4h"],
-    size=48,
-    analysis_types=["ema", "rsi", "macd", "atr"]
-)
-
-config = {
-    "configurable": {
-        "model_type": "3_flash",
-        "include_paid_key": True
-    }
-}
-
-state = technical_analysis_graph.invoke(
-    {"input": input_data},
-    config=config
-)
-
-print("Signal values:", state.get("signal_values"))
-print("Final signal:", state.get("final_signal"))
-```
-
-Run the demo:
+### CLI
 
 ```bash
 uv run python main.py
 ```
 
+### Streamlit Web App
+
+```bash
+uv run streamlit run streamlit_app/app.py
+```
+
+The web app provides:
+- Interactive Plotly candlestick charts with indicator overlays
+- AI chat interface with streaming agent responses
+- Real-time visualization of agent thinking, todos, and task delegations
+
+## Architecture
+
+### Agent Hierarchy
+
+```
+Orchestrator Agent (Strategic Planner)
+├── Chart Description Agent (Objective visual analysis)
+├── Chart Analysis Agent (Technical interpretation)
+└── Quant Agent (Data-driven quantitative analysis)
+```
+
+### 4-Phase Workflow
+
+1. **Investigation Design** - Orchestrator decomposes trading query, creates TODO plan
+2. **Agent Delegation** - Parallel task execution to Chart/Quant agents
+3. **Adaptive Planning** - Reflection via think_tool, dynamic TODO updates after each agent response
+4. **Knowledge Synthesis** - Integrate findings, resolve conflicts, provide actionable output
+
 ## Project Structure
 
 ```
 src/
-├── models/                 # Pydantic models
-│   ├── currency.py         # Currency and CurrencyPair definitions
-│   └── technical_analysis_model.py
-├── prompts/                # LLM prompts
-│   └── technical_analysis_prompts.py
+├── agents/                     # Agent definitions
+│   ├── orchestrator.py         # Master coordinator with TODO, think, and task tools
+│   ├── chart_agent.py          # Vision agents for chart description and analysis
+│   └── quant_agent.py          # Quantitative agent with data and code execution
+├── tools/                      # Agent tools
+│   ├── task_tool.py            # Delegates to Chart or Quant agents
+│   ├── quant_tools.py          # download_market_data() and write_code()
+│   ├── todo_tools.py           # write_todos() and read_todos()
+│   └── think_tool.py           # Strategic reflection checkpoint
+├── states_and_contexts/        # State schemas and context configs
+│   └── technical_analysis.py
+├── prompts/                    # System prompts for all agents
+│   └── technical_analysis.py
 ├── services/
+│   ├── asset_metadata.py       # Asset metadata with caching
+│   ├── scenario/               # Hypothesis testing modules
 │   └── technical/
-│       └── technical_analysis_graph.py  # LangGraph workflow
+│       └── technical_indicator.py  # OHLC data and chart generation
 └── utils/
-    ├── charts.py           # Chart generation with mplfinance
-    ├── llm.py              # Gemini API with key rotation
-    ├── technical_context.py # Indicator context extraction
-    └── twelve_data.py      # TwelveData market data client
+    ├── charts.py               # Matplotlib/mplfinance chart generation
+    ├── llm.py                  # Gemini API integration
+    ├── technical_context.py    # Technical indicator context extraction
+    └── twelve_data.py          # TwelveData market data client
+
+streamlit_app/
+├── app.py                      # Main entry point
+├── components/
+│   ├── chart.py                # Plotly candlestick charts with indicators
+│   ├── chat.py                 # Chat interface with streaming agent display
+│   └── sidebar.py              # Settings panel
+├── services/
+│   ├── agent_service.py        # Agent streaming with StreamEvent handling
+│   └── data_service.py         # TwelveData API client with caching
+└── utils/
+    └── styles.py               # CSS styles and chart colors
 ```
 
-## How It Works
+## Supported Indicators
 
-1. **Data Fetch & Chart Generation** - Fetches OHLC data from TwelveData and generates candlestick charts with technical indicators using mplfinance
+- **EMA** - Exponential Moving Average
+- **RSI** - Relative Strength Index
+- **MACD** - Moving Average Convergence Divergence
+- **ATR** - Average True Range
+- **Bollinger Bands**
+- **Pivot Points**
+- **Fibonacci Levels**
 
-2. **Parallel Analysis** - Multiple analysis nodes run concurrently, each focusing on a specific indicator (EMA, RSI, MACD, ATR)
+## License
 
-3. **Vision-Based Analysis** - Charts are base64-encoded and sent to Gemini for AI interpretation using specialized prompts
+This project is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE).
 
-4. **Signal Aggregation** - Individual indicator signals are combined into a final signal ranging from -1.0 (Strong Sell) to +1.0 (Strong Buy)
+You are free to use, modify, and distribute this software for **personal and non-commercial purposes** only. Commercial use requires a separate license from the author.

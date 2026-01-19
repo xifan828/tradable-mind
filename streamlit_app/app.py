@@ -44,6 +44,7 @@ def initialize_session_state():
         "chart_loaded": False,
         "pivot_levels": None,
         "fibonacci_levels": None,
+        "current_indicators": {},  # Store selected indicators for AI context
         # Agent configuration
         "min_research_iterations": 2,
         "max_research_iterations": 6,
@@ -200,6 +201,7 @@ def render_chat_section(settings: dict):
                 gemini_api_key=settings["gemini_api_key"],
                 current_symbol=st.session_state.current_symbol,
                 current_interval=st.session_state.current_interval,
+                current_indicators=st.session_state.current_indicators,
             ))
 
 
@@ -241,6 +243,7 @@ def load_chart_data(settings: dict):
             st.session_state.current_interval = settings["interval"]
             st.session_state.pivot_levels = pivot_levels
             st.session_state.fibonacci_levels = fibonacci_levels
+            st.session_state.current_indicators = settings["indicators"]
             st.session_state.chart_loaded = True
 
             return True

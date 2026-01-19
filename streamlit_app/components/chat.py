@@ -1,6 +1,7 @@
 """Chat interface component with streaming display and task iteration grouping."""
 
 import uuid
+from datetime import datetime
 import streamlit as st
 from typing import Any
 from collections import defaultdict
@@ -410,11 +411,49 @@ def handle_stream_event(event: StreamEvent, placeholders: dict):
         add_message("assistant", f"Error: {event.content}", "text")
 
 
+def format_indicators_for_context(indicators: dict) -> str:
+    """Format indicators dictionary into a readable string for AI context."""
+    if not indicators:
+        return "None selected"
+
+    active_indicators = []
+
+    # EMAs
+    emas = []
+    if indicators.get("ema_10"):
+        emas.append("10")
+    if indicators.get("ema_20"):
+        emas.append("20")
+    if indicators.get("ema_50"):
+        emas.append("50")
+    if indicators.get("ema_100"):
+        emas.append("100")
+    if emas:
+        active_indicators.append(f"EMA ({', '.join(emas)})")
+
+    # Other indicators
+    if indicators.get("bb"):
+        active_indicators.append("Bollinger Bands")
+    if indicators.get("rsi"):
+        active_indicators.append("RSI")
+    if indicators.get("macd"):
+        active_indicators.append("MACD")
+    if indicators.get("atr"):
+        active_indicators.append("ATR")
+    if indicators.get("pivot"):
+        active_indicators.append("Pivot Points")
+    if indicators.get("fibonacci"):
+        active_indicators.append("Fibonacci Levels")
+
+    return ", ".join(active_indicators) if active_indicators else "None selected"
+
+
 async def process_user_input(
     user_input: str,
     gemini_api_key: str,
     current_symbol: str,
-    current_interval: str
+    current_interval: str,
+    current_indicators: dict | None = None
 ):
     """Process user input and stream agent response."""
     # Reset iteration tracking
@@ -422,13 +461,17 @@ async def process_user_input(
     st.session_state.iteration_count = 0
     st.session_state.pending_tasks = {}
 
-    enhanced_query = f"""
-User question: {user_input}
+    indicators_str = format_indicators_for_context(current_indicators or {})
+    current_time = datetime.now().strftime("%Y-%m-%d, %H:%M, %A")
 
-Current context:
-- Symbol being analyzed: {current_symbol}
+    enhanced_query = f"""<context>
+- Symbol being analyzed: {current_symbol}. Use THIS symbol when delegating tasks to subagents.
 - Chart interval: {current_interval}
-"""
+- Technical indicators displayed on chart: {indicators_str}
+- Current time: {current_time}
+</context>
+
+User question: {user_input}"""
 
     context = create_context(
         gemini_api_key,

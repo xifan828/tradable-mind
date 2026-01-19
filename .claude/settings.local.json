@@ -15,7 +15,9 @@
       "Bash(curl:*)",
       "Bash(timeout:*)",
       "Bash(git -C D:Projectstradable-mind status)",
-      "Bash(git branch:*)"
+      "Bash(git branch:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)"
     ]
   }
 }
