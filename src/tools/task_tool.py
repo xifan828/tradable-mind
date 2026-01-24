@@ -18,7 +18,7 @@ class ChartAnalysisTask:
             analysis_input: ChartAnalysisInput,
             # asset: str,
             # interval: str,
-            # indicator: Literal["ema", "rsi", "macd", "atr", "bb", "pivot", "fibonacci", "none"],
+            # indicator: Literal["ema", "rsi", "macd", "atr", "bb", "pivot", "none"],
             # size: int,
             # end_date: str,
             context: ChartAgentContext | None = None
@@ -47,7 +47,7 @@ class ChartAnalysisTask:
         decimal_places = get_decimal_places(self.asset)
         current_price = df["Close"].round(decimal_places).iloc[-1]
 
-        pivot_levels, fib_levels = None, None
+        pivot_levels = None
 
         if self.indicator == "pivot":
             pivot_levels = service.get_pivot_levels(interval="1day", end_date=self.end_date)
@@ -56,15 +56,6 @@ class ChartAnalysisTask:
                 size=self.size,
                 analysis_type=self.indicator,
                 pivot_levels=pivot_levels
-            )
-
-        elif self.indicator == "fibonacci":
-            fib_levels = service.get_fibonacci_levels(lookback=50, end_date=self.end_date)
-            encoded_chart = service.prepare_chart(
-                df=df,
-                size=self.size,
-                analysis_type=self.indicator,
-                fibonacci_levels=fib_levels
             )
 
         else:
@@ -78,8 +69,7 @@ class ChartAnalysisTask:
             df=df,
             analysis_type=self.indicator,
             decimal_places=decimal_places,
-            pivot_levels=pivot_levels,
-            fibonacci_levels=fib_levels
+            pivot_levels=pivot_levels
         )
 
         return encoded_chart, extra_context, current_price

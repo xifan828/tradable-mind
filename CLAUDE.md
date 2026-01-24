@@ -81,24 +81,29 @@ Interactive web interface for technical analysis at `streamlit_app/`.
 
 ```
 streamlit_app/
-├── app.py                    # Main entry point
+├── app.py                    # Main entry point with front page and main app flow
+├── token_counter.py          # Standalone token counting utility (tiktoken-based)
 ├── components/
 │   ├── chart.py              # Plotly candlestick charts with indicators
-│   ├── chat.py               # Chat interface with streaming agent display
-│   └── sidebar.py            # Settings panel (API key, symbol, indicators)
+│   ├── chat.py               # Chat interface with streaming and iteration grouping
+│   └── sidebar.py            # Settings panel (symbol, interval, indicators)
 ├── services/
 │   ├── agent_service.py      # Agent streaming with StreamEvent handling
 │   └── data_service.py       # TwelveData API client with caching
 └── utils/
-    └── styles.py             # CSS styles and chart color config
+    └── styles.py             # CSS styles (light theme) and chart color config
 ```
 
 ### Key Features
 
-- **Interactive Charts**: Plotly-based candlestick charts with EMA, BB, RSI, MACD, ATR overlays
-- **AI Chat Interface**: Streams orchestrator agent responses with real-time tool visualization
-- **Tool Display**: Shows think_tool, write_todos, and task delegations with results in expandable sections
-- **Session State**: Manages chat history, pending tasks (keyed by tool_call_id), and chart data
+- **Front Page Flow**: Landing page with API key input, transitions to main app on entry
+- **Interactive Charts**: Plotly-based candlestick charts with EMA, BB, RSI, MACD, ATR, Volume overlays
+- **Pivot Points Display**: Inline price header showing R1-R3/S1-S3 levels when enabled
+- **Daily Change**: Shows daily price change (not interval change) in the header
+- **Weekend Filtering**: Automatically filters out Saturday/Sunday data from charts
+- **Agent Configuration**: Configurable min/max research iterations and parallel task limits
+- **Conversation Threading**: Maintains `thread_id` for conversation continuity across messages
+- **Streaming UI Lock**: Disables sidebar controls during agent streaming with pending action queue
 
 ### Streaming Architecture
 
@@ -106,7 +111,28 @@ streamlit_app/
 - `thinking` - Reflection from think_tool
 - `tool_call` - Tool invocations (write_todos, etc.)
 - `task` - Task delegations to Chart/Quant agents
+- `tasks_collected` - Signal that all task calls in a batch are collected
 - `tool_result` - Results matched to calls via `tool_call_id`
-- `text` - Final agent response (extracted from `content[0]["text"]`)
+- `todos` - TODO list updates
+- `text` - Final agent response
+- `done` - Stream completion signal
+- `error` - Error events
 
-`chat.py` renders events with visual separators and tracks pending tasks to display results in their corresponding sections.
+### Investigation Rounds
+
+`chat.py` groups task delegations into "Investigation Rounds" with:
+- Real-time iteration headers showing agent counts (📊 Chart, 🔢 Quant)
+- Completion tracking (e.g., "2/4 Complete")
+- Expandable details with task descriptions and results
+- Results update in-place as agents complete
+
+### Session State
+
+Key session state variables managed in `app.py`:
+- `chart_data`, `current_symbol`, `current_interval` - Chart state
+- `current_indicators` - Selected indicators (passed to AI context)
+- `gemini_api_key` - API key from front page
+- `min/max_research_iterations`, `max_concurrent_tasks` - Agent config
+- `thread_id` - Unique conversation thread ID
+- `is_streaming` - Lock flag during agent execution
+- `pending_*` - Queued actions (load chart, clear conversation, prompt)

@@ -39,7 +39,6 @@ CHART_COLORS = {
     "pivot": "#2196F3",
     "resistance": "#ef5350",
     "support": "#26a69a",
-    "fibonacci": "#9C27B0",
 }
 
 DARK_THEME_CSS = """
@@ -345,6 +344,66 @@ DARK_THEME_CSS = """
     .stTabs [aria-selected="true"] {
         background-color: #ffffff;
         color: #1a1a1a;
+    }
+
+    /* Front Page Styles */
+    .front-page {
+        text-align: center;
+        padding: 4rem 2rem 1rem 2rem;
+    }
+
+    .front-page-logo {
+        font-size: 2.75rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #1976d2 0%, #7c4dff 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 1rem;
+        letter-spacing: -0.02em;
+    }
+
+    .front-page-headline {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 0.5rem;
+    }
+
+    .front-page-tagline {
+        font-size: 1rem;
+        color: #666666;
+        margin-bottom: 2rem;
+    }
+
+    .tagline-highlight {
+        color: #1976d2;
+        font-weight: 600;
+    }
+
+    .front-page-cta {
+        margin-bottom: 0.5rem;
+    }
+
+    .cta-text {
+        color: #64748b;
+        font-size: 0.9rem;
+        margin: 0;
+    }
+
+    .front-page-link {
+        text-align: center;
+        margin-top: 1rem;
+    }
+
+    .front-page-link a {
+        color: #1976d2;
+        font-size: 0.85rem;
+        text-decoration: none;
+    }
+
+    .front-page-link a:hover {
+        text-decoration: underline;
     }
 
 </style>

@@ -31,7 +31,7 @@ class QuantAgentContext:
 class ChartAnalysisInput(BaseModel):
     asset: str
     interval: Literal["1min", "5min", "15min", "1h", "4h", "1day", "1week"]
-    indicator: Literal["ema", "rsi", "macd", "atr", "bb", "pivot", "fibonacci", "none"]
+    indicator: Literal["ema", "rsi", "macd", "atr", "bb", "pivot", "none"]
     size: int = 80
     end_date: Optional[str] = None
 

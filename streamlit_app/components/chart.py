@@ -36,7 +36,6 @@ def create_candlestick_chart(
     interval: str,
     indicators: dict,
     pivot_levels: dict | None = None,
-    fibonacci_levels: dict | None = None,
 ) -> go.Figure:
     """
     Create an interactive Plotly candlestick chart with technical indicators.
@@ -47,7 +46,6 @@ def create_candlestick_chart(
         interval: Time interval for title
         indicators: Dict of indicator toggles (e.g., {"ema_20": True, "rsi": True})
         pivot_levels: Optional pivot point levels
-        fibonacci_levels: Optional Fibonacci levels
 
     Returns:
         Plotly Figure object
@@ -165,37 +163,7 @@ def create_candlestick_chart(
         )
 
     # === Pivot Points ===
-    if indicators.get("pivot") and pivot_levels:
-        pivot_configs = [
-            ("Pivot", CHART_COLORS["pivot"], "solid"),
-            ("R1", CHART_COLORS["resistance"], "dash"),
-            ("R2", CHART_COLORS["resistance"], "dot"),
-            ("R3", CHART_COLORS["resistance"], "dashdot"),
-            ("S1", CHART_COLORS["support"], "dash"),
-            ("S2", CHART_COLORS["support"], "dot"),
-            ("S3", CHART_COLORS["support"], "dashdot"),
-        ]
-        for name, color, dash in pivot_configs:
-            if name in pivot_levels:
-                fig.add_hline(
-                    y=pivot_levels[name],
-                    line=dict(color=color, width=1, dash=dash),
-                    annotation_text=name,
-                    annotation_position="right",
-                    row=1, col=1
-                )
-
-    # === Fibonacci Levels ===
-    if indicators.get("fibonacci") and fibonacci_levels:
-        fib_color = CHART_COLORS["fibonacci"]
-        for level_name, level_value in fibonacci_levels.items():
-            fig.add_hline(
-                y=level_value,
-                line=dict(color=fib_color, width=1, dash="dot"),
-                annotation_text=f"Fib {level_name}",
-                annotation_position="right",
-                row=1, col=1
-            )
+    # Pivot values are displayed in the header area (app.py) when enabled
 
     # === Subplot Indicators ===
     current_row = 2

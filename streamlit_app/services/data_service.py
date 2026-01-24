@@ -211,42 +211,6 @@ class ChartDataService:
         except Exception:
             return None
 
-    def calculate_fibonacci_levels(
-        self,
-        df: pd.DataFrame,
-        lookback: int = 50
-    ) -> dict | None:
-        """
-        Calculate Fibonacci retracement levels.
-
-        Args:
-            df: DataFrame with High, Low columns
-            lookback: Number of periods to look back for high/low
-
-        Returns:
-            Dictionary with Fibonacci levels (0%, 23.6%, 38.2%, 50%, 61.8%, 78.6%, 100%)
-        """
-        if df is None or len(df) < lookback:
-            return None
-
-        try:
-            high = df["High"].iloc[-lookback:].max()
-            low = df["Low"].iloc[-lookback:].min()
-            diff = high - low
-
-            return {
-                "0%": low,
-                "23.6%": low + 0.236 * diff,
-                "38.2%": low + 0.382 * diff,
-                "50%": low + 0.5 * diff,
-                "61.8%": low + 0.618 * diff,
-                "78.6%": low + 0.786 * diff,
-                "100%": high,
-            }
-        except Exception:
-            return None
-
-
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_cached_data(
     symbol: str,
@@ -260,3 +224,44 @@ def fetch_cached_data(
     """
     service = ChartDataService()
     return service.fetch_ohlcv_data(symbol, interval, outputsize)
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def fetch_daily_change(symbol: str) -> dict | None:
+    """
+    Fetch daily change data for a symbol.
+
+    Returns:
+        Dictionary with 'change' and 'change_pct' or None if error
+    """
+    try:
+        load_dotenv()
+        api_key = os.getenv("TD_API_KEY")
+        if not api_key:
+            return None
+
+        client = TDClient(apikey=api_key)
+        ts = client.time_series(
+            symbol=symbol,
+            interval="1day",
+            outputsize=2,
+            timezone="UTC",
+        )
+        df = ts.as_pandas()
+
+        if df is None or len(df) < 2:
+            return None
+
+        # df is newest-first from API
+        current_close = df.iloc[0]["close"]
+        prev_close = df.iloc[1]["close"]
+
+        change = current_close - prev_close
+        change_pct = (change / prev_close) * 100
+
+        return {
+            "change": change,
+            "change_pct": change_pct,
+        }
+    except Exception:
+        return None

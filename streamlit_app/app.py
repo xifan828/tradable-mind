@@ -23,7 +23,7 @@ from streamlit_app.components.chat import (
     add_message,
     process_user_input,
 )
-from streamlit_app.services.data_service import ChartDataService, fetch_cached_data
+from streamlit_app.services.data_service import ChartDataService, fetch_cached_data, fetch_daily_change
 
 
 # Page configuration - must be first Streamlit command
@@ -43,12 +43,21 @@ def initialize_session_state():
         "current_interval": "4h",
         "chart_loaded": False,
         "pivot_levels": None,
-        "fibonacci_levels": None,
+        "daily_change": None,  # Store daily change data
         "current_indicators": {},  # Store selected indicators for AI context
+        # API key (stored for front page flow)
+        "gemini_api_key": "",
         # Agent configuration
         "min_research_iterations": 2,
         "max_research_iterations": 6,
         "max_concurrent_tasks": 4,
+        # Pending actions (queued during streaming)
+        "pending_load_chart": False,
+        "pending_clear_conversation": False,
+        "pending_chart_settings": None,
+        # Pending prompt (set before rerun to ensure sidebar is disabled)
+        "pending_prompt": None,
+        "pending_prompt_settings": None,
     }
 
     for key, value in defaults.items():
@@ -59,58 +68,140 @@ def initialize_session_state():
     initialize_chat_state()
 
 
-def render_header():
-    """Render the main header."""
+def render_front_page():
+    """Render the front page when API key is not provided."""
+    # Full centered layout
     st.markdown(
         """
-        <div class="main-header">
-            <h1>Technical Analysis</h1>
-            <p>Interactive charts powered by AI insights</p>
+        <div class="front-page">
+            <div class="front-page-logo">Tradable Mind</div>
+            <p class="front-page-headline">AI Agent that helps you reason about the market.</p>
+            <p class="front-page-tagline">
+                Stop following indicators. <span class="tagline-highlight">Start following reasoning.</span>
+            </p>
+            <div class="front-page-cta">
+                <p class="cta-text">To begin, enter your Gemini API key</p>
+            </div>
         </div>
         """,
         unsafe_allow_html=True
     )
+
+    # Very narrow center column for input
+    col1, col2, col3 = st.columns([1.5, 1, 1.5])
+    with col2:
+        api_key = st.text_input(
+            "Gemini API Key",
+            type="password",
+            placeholder="Paste API key here",
+            key="front_page_api_key",
+            label_visibility="collapsed"
+        )
+
+    st.markdown(
+        """
+        <div class="front-page-link">
+            <a href="https://aistudio.google.com/app/apikey" target="_blank">
+                Get your free API key from Google AI Studio →
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    return api_key
 
 
 def render_chart_section(settings: dict):
     """Render the chart section with price info."""
     if st.session_state.chart_data is None:
         st.info(
-            "Enter an asset symbol and click 'Load Chart' to begin.",
+            "**To begin:**\n"
+            "- Enter an asset symbol\n"
+            "- Choose your indicators\n"
+            "- Press Load Chart",
             icon=":material/candlestick_chart:"
         )
         return
 
     df = st.session_state.chart_data
 
-    # Price info row
+    # Price info row - compact layout
     latest = get_latest_values(df)
     if latest.get("close"):
-        col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+        close_price = latest["close"]
 
-        with col1:
-            st.markdown(f"### {st.session_state.current_symbol}")
-
-        with col2:
-            close_price = latest["close"]
-            st.metric("Price", f"{close_price:.4f}")
-
-        with col3:
+        # Use daily change instead of interval change
+        daily_change = st.session_state.daily_change
+        if daily_change:
+            change = daily_change.get("change", 0)
+            change_pct = daily_change.get("change_pct", 0)
+        else:
             change = latest.get("change", 0)
             change_pct = latest.get("change_pct", 0)
-            if change is not None:
-                delta_color = "normal" if change >= 0 else "inverse"
-                st.metric(
-                    "Change",
-                    f"{change:+.4f}",
-                    f"{change_pct:+.2f}%",
-                    delta_color=delta_color
-                )
 
-        with col4:
-            rsi = latest.get("rsi")
-            if rsi:
-                st.metric("RSI", f"{rsi:.1f}")
+        # Build change display
+        if change is not None and change >= 0:
+            change_color = "#22c55e"
+            change_icon = "▲"
+        else:
+            change_color = "#ef4444"
+            change_icon = "▼"
+
+        # Check if pivot points should be displayed
+        show_pivot = settings["indicators"].get("pivot") and st.session_state.pivot_levels
+
+        if show_pivot:
+            pivot_levels = st.session_state.pivot_levels
+            # Single row layout with price info and pivot points inline
+            st.markdown(
+                f"""
+                <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+                    <span style="font-size: 1.5rem; font-weight: 600;">{st.session_state.current_symbol}</span>
+                    <span style="font-size: 1.25rem; font-weight: 500;">{close_price:.4f}</span>
+                    <span style="color: {change_color}; font-size: 0.95rem;">
+                        {change_icon} {abs(change):.4f} ({change_pct:+.2f}%)
+                    </span>
+                    <span style="color: #9ca3af; margin: 0 0.25rem;">|</span>
+                    <span style="background: #fee2e2; color: #dc2626; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
+                        R3: {pivot_levels.get('R3', 0):.4f}
+                    </span>
+                    <span style="background: #fecaca; color: #dc2626; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
+                        R2: {pivot_levels.get('R2', 0):.4f}
+                    </span>
+                    <span style="background: #fef2f2; color: #dc2626; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
+                        R1: {pivot_levels.get('R1', 0):.4f}
+                    </span>
+                    <span style="background: #f3f4f6; color: #374151; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">
+                        P: {pivot_levels.get('Pivot', 0):.4f}
+                    </span>
+                    <span style="background: #f0fdf4; color: #16a34a; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
+                        S1: {pivot_levels.get('S1', 0):.4f}
+                    </span>
+                    <span style="background: #bbf7d0; color: #16a34a; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
+                        S2: {pivot_levels.get('S2', 0):.4f}
+                    </span>
+                    <span style="background: #86efac; color: #16a34a; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
+                        S3: {pivot_levels.get('S3', 0):.4f}
+                    </span>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+        else:
+            # Compact layout without pivot points
+            st.markdown(
+                f"""
+                <div style="display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap;">
+                    <span style="font-size: 1.5rem; font-weight: 600;">{st.session_state.current_symbol}</span>
+                    <span style="font-size: 1.25rem; font-weight: 500;">{close_price:.4f}</span>
+                    <span style="color: {change_color}; font-size: 0.95rem;">
+                        {change_icon} {abs(change):.4f} ({change_pct:+.2f}%)
+                    </span>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
     # Create and display chart
     fig = create_candlestick_chart(
@@ -119,7 +210,6 @@ def render_chart_section(settings: dict):
         interval=st.session_state.current_interval,
         indicators=settings["indicators"],
         pivot_levels=st.session_state.pivot_levels,
-        fibonacci_levels=st.session_state.fibonacci_levels,
     )
 
     st.plotly_chart(fig, use_container_width=True, config={
@@ -131,33 +221,37 @@ def render_chart_section(settings: dict):
 
 def render_agent_settings():
     """Render agent configuration settings in an expander."""
-    with st.expander("Agent Settings", expanded=False):
+    # Clamp values to valid ranges (in case of existing sessions with old limits)
+    st.session_state.min_research_iterations = min(st.session_state.min_research_iterations, 6)
+    st.session_state.max_research_iterations = min(st.session_state.max_research_iterations, 6)
+    st.session_state.max_concurrent_tasks = min(st.session_state.max_concurrent_tasks, 4)
+
+    with st.expander("Agent Configuration", expanded=True, icon=":material/tune:"):
+        st.caption("Settings are applied automatically to the next message.")
+
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            st.session_state.min_research_iterations = st.number_input(
+            st.session_state.min_research_iterations = st.selectbox(
                 "Min Iterations",
-                min_value=1,
-                max_value=10,
-                value=st.session_state.min_research_iterations,
+                options=[1, 2, 3, 4, 5, 6],
+                index=st.session_state.min_research_iterations - 1,
                 help="Minimum research iterations before concluding"
             )
 
         with col2:
-            st.session_state.max_research_iterations = st.number_input(
+            st.session_state.max_research_iterations = st.selectbox(
                 "Max Iterations",
-                min_value=1,
-                max_value=20,
-                value=st.session_state.max_research_iterations,
+                options=[1, 2, 3, 4, 5, 6],
+                index=st.session_state.max_research_iterations - 1,
                 help="Maximum research iterations allowed"
             )
 
         with col3:
-            st.session_state.max_concurrent_tasks = st.number_input(
-                "Max Concurrent Tasks",
-                min_value=1,
-                max_value=10,
-                value=st.session_state.max_concurrent_tasks,
+            st.session_state.max_concurrent_tasks = st.selectbox(
+                "Parallel Tasks",
+                options=[1, 2, 3, 4],
+                index=st.session_state.max_concurrent_tasks - 1,
                 help="Maximum tasks to run in parallel"
             )
 
@@ -165,7 +259,7 @@ def render_agent_settings():
 def render_chat_section(settings: dict):
     """Render the chat section with input."""
     st.markdown("---")
-    st.markdown("### AI Analysis Chat")
+    st.markdown("### Ask the Agent")
 
     # Agent settings
     render_agent_settings()
@@ -182,11 +276,31 @@ def render_chat_section(settings: dict):
             icon=":material/key:"
         )
 
-    # Chat input
+    # Chat input (disabled during streaming)
+    is_streaming = st.session_state.get("is_streaming", False)
     if prompt := st.chat_input(
-        "Ask about the chart or request analysis...",
-        disabled=not can_chat
+        "Ask about the chart or request analysis..." if not is_streaming
+        else "Please wait for analysis to complete...",
+        disabled=not can_chat or is_streaming
     ):
+        # Store prompt and set streaming flag, then rerun to disable sidebar
+        st.session_state.pending_prompt = prompt
+        st.session_state.pending_prompt_settings = {
+            "gemini_api_key": settings["gemini_api_key"],
+            "current_symbol": st.session_state.current_symbol,
+            "current_interval": st.session_state.current_interval,
+            "current_indicators": st.session_state.current_indicators,
+        }
+        st.session_state.is_streaming = True
+        st.rerun()
+
+    # Process pending prompt (after rerun with disabled sidebar)
+    if st.session_state.get("pending_prompt") and is_streaming:
+        prompt = st.session_state.pending_prompt
+        prompt_settings = st.session_state.pending_prompt_settings
+        st.session_state.pending_prompt = None
+        st.session_state.pending_prompt_settings = None
+
         # Add user message
         add_message("user", prompt, "text")
 
@@ -198,10 +312,10 @@ def render_chat_section(settings: dict):
         with st.chat_message("assistant"):
             asyncio.run(process_user_input(
                 user_input=prompt,
-                gemini_api_key=settings["gemini_api_key"],
-                current_symbol=st.session_state.current_symbol,
-                current_interval=st.session_state.current_interval,
-                current_indicators=st.session_state.current_indicators,
+                gemini_api_key=prompt_settings["gemini_api_key"],
+                current_symbol=prompt_settings["current_symbol"],
+                current_interval=prompt_settings["current_interval"],
+                current_indicators=prompt_settings["current_indicators"],
             ))
 
 
@@ -229,20 +343,19 @@ def load_chart_data(settings: dict):
             # Calculate levels if needed
             service = ChartDataService()
             pivot_levels = None
-            fibonacci_levels = None
 
             if settings["indicators"].get("pivot"):
                 pivot_levels = service.calculate_pivot_points(df)
 
-            if settings["indicators"].get("fibonacci"):
-                fibonacci_levels = service.calculate_fibonacci_levels(df)
+            # Fetch daily change
+            daily_change = fetch_daily_change(settings["symbol"])
 
             # Update session state
             st.session_state.chart_data = df
             st.session_state.current_symbol = settings["symbol"]
             st.session_state.current_interval = settings["interval"]
             st.session_state.pivot_levels = pivot_levels
-            st.session_state.fibonacci_levels = fibonacci_levels
+            st.session_state.daily_change = daily_change
             st.session_state.current_indicators = settings["indicators"]
             st.session_state.chart_loaded = True
 
@@ -261,23 +374,48 @@ def main():
     # Inject custom CSS
     inject_custom_css()
 
+    # Check if we have an API key stored from previous session or front page
+    stored_api_key = st.session_state.get("gemini_api_key", "")
+
+    # If no stored API key, show front page
+    if not stored_api_key:
+        front_page_key = render_front_page()
+        if front_page_key:
+            st.session_state.gemini_api_key = front_page_key
+            st.rerun()
+        return
+
     # Render sidebar and get settings
     settings = render_sidebar()
 
     # Handle load chart button
     if settings["load_clicked"]:
-        success = load_chart_data(settings)
-        if success:
-            st.rerun()
+        if st.session_state.get("is_streaming", False):
+            # Queue the load for when streaming finishes
+            st.session_state.pending_load_chart = True
+            st.session_state.pending_chart_settings = settings.copy()
+            st.toast("Chart will load after agent finishes")
+        else:
+            success = load_chart_data(settings)
+            if success:
+                st.rerun()
 
-    # Main content area
-    render_header()
+    # Process queued chart load (after streaming completed)
+    if st.session_state.get("pending_load_chart") and not st.session_state.get("is_streaming"):
+        st.session_state.pending_load_chart = False
+        pending_settings = st.session_state.get("pending_chart_settings")
+        if pending_settings:
+            st.session_state.pending_chart_settings = None
+            success = load_chart_data(pending_settings)
+            if success:
+                st.rerun()
 
     # Chart section
     render_chart_section(settings)
 
-    # Chat section
-    render_chat_section(settings)
+    # Chat section (only show after chart is loaded)
+    if st.session_state.chart_loaded:
+        render_chat_section(settings)
 
 
 if __name__ == "__main__":

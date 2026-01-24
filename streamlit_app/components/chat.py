@@ -442,8 +442,6 @@ def format_indicators_for_context(indicators: dict) -> str:
         active_indicators.append("ATR")
     if indicators.get("pivot"):
         active_indicators.append("Pivot Points")
-    if indicators.get("fibonacci"):
-        active_indicators.append("Fibonacci Levels")
 
     return ", ".join(active_indicators) if active_indicators else "None selected"
 
@@ -456,15 +454,17 @@ async def process_user_input(
     current_indicators: dict | None = None
 ):
     """Process user input and stream agent response."""
-    # Reset iteration tracking
-    st.session_state.current_iteration = None
-    st.session_state.iteration_count = 0
-    st.session_state.pending_tasks = {}
+    # Note: is_streaming flag is already set before rerun in app.py
+    try:
+        # Reset iteration tracking
+        st.session_state.current_iteration = None
+        st.session_state.iteration_count = 0
+        st.session_state.pending_tasks = {}
 
-    indicators_str = format_indicators_for_context(current_indicators or {})
-    current_time = datetime.now().strftime("%Y-%m-%d, %H:%M, %A")
+        indicators_str = format_indicators_for_context(current_indicators or {})
+        current_time = datetime.now().strftime("%Y-%m-%d, %H:%M, %A")
 
-    enhanced_query = f"""<context>
+        enhanced_query = f"""<context>
 - Symbol being analyzed: {current_symbol}. Use THIS symbol when delegating tasks to subagents.
 - Chart interval: {current_interval}
 - Technical indicators displayed on chart: {indicators_str}
@@ -473,33 +473,51 @@ async def process_user_input(
 
 User question: {user_input}"""
 
-    context = create_context(
-        gemini_api_key,
-        min_research_iterations=st.session_state.min_research_iterations,
-        max_research_iterations=st.session_state.max_research_iterations,
-        max_concurrent_tasks=st.session_state.max_concurrent_tasks,
-    )
+        context = create_context(
+            gemini_api_key,
+            min_research_iterations=st.session_state.min_research_iterations,
+            max_research_iterations=st.session_state.max_research_iterations,
+            max_concurrent_tasks=st.session_state.max_concurrent_tasks,
+        )
 
-    status_placeholder = st.empty()
-    todos_placeholder = st.empty()
-    events_container = st.container()
-    response_placeholder = st.empty()
+        status_placeholder = st.empty()
+        todos_placeholder = st.empty()
+        events_container = st.container()
+        response_placeholder = st.empty()
 
-    placeholders = {
-        "status": status_placeholder,
-        "todos": todos_placeholder,
-        "events": events_container,
-        "response": response_placeholder,
-    }
+        placeholders = {
+            "status": status_placeholder,
+            "todos": todos_placeholder,
+            "events": events_container,
+            "response": response_placeholder,
+        }
 
-    with status_placeholder:
-        st.info("Agent is analyzing...", icon=":material/psychology:")
+        with status_placeholder:
+            st.info("Agent is analyzing...", icon=":material/psychology:")
 
-    async for event in stream_agent_response(enhanced_query, context, st.session_state.thread_id):
-        handle_stream_event(event, placeholders)
+        async for event in stream_agent_response(enhanced_query, context, st.session_state.thread_id):
+            handle_stream_event(event, placeholders)
 
-        if event.event_type == "done":
-            # Show any remaining iteration and finalize
-            show_iteration_immediately(placeholders)
-            finalize_iteration_to_history()
-            status_placeholder.empty()
+            if event.event_type == "done":
+                # Show any remaining iteration and finalize
+                show_iteration_immediately(placeholders)
+                finalize_iteration_to_history()
+                status_placeholder.empty()
+
+    finally:
+        # Always clear streaming flag
+        st.session_state.is_streaming = False
+
+        # Process any queued actions or just rerun to re-enable controls
+        if st.session_state.get("pending_clear_conversation"):
+            st.session_state.pending_clear_conversation = False
+            st.session_state.messages = []
+            st.session_state.pending_tasks = {}
+            st.session_state.thread_id = str(uuid.uuid4())
+            st.rerun()
+        elif st.session_state.get("pending_load_chart"):
+            st.session_state.pending_load_chart = False
+            st.rerun()
+        else:
+            # Rerun to re-enable sidebar controls
+            st.rerun()

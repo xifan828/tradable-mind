@@ -4,6 +4,11 @@ import uuid
 import streamlit as st
 
 
+def _is_streaming() -> bool:
+    """Check if agent is currently streaming."""
+    return st.session_state.get("is_streaming", False)
+
+
 def render_sidebar() -> dict:
     """
     Render the sidebar with all input controls.
@@ -12,31 +17,22 @@ def render_sidebar() -> dict:
         Dictionary with current settings from the sidebar
     """
     with st.sidebar:
-        # App title/logo
+        # App title/logo - matching landing page style
         st.markdown(
             """
             <div style="text-align: center; padding: 1rem 0;">
-                <h1 style="margin: 0; font-size: 1.5rem;">Tradable Mind</h1>
-                <p style="color: #a0a0a0; font-size: 0.875rem; margin-top: 0.25rem;">
-                    AI-Powered Technical Analysis
+                <div style="font-size: 1.5rem; font-weight: 700; background: linear-gradient(135deg, #1976d2 0%, #7c4dff 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.02em;">Tradable Mind</div>
+                <p style="color: #666666; font-size: 0.875rem; margin-top: 0.25rem;">
+                    AI-Powered Market Analysis
                 </p>
             </div>
             """,
             unsafe_allow_html=True
         )
 
-        st.divider()
-
-        # === API Keys Section ===
-        st.markdown('<p class="sidebar-section">API Key</p>', unsafe_allow_html=True)
-
-        gemini_api_key = st.text_input(
-            "Gemini API Key",
-            type="password",
-            placeholder="Enter your Gemini API key",
-            help="Required for AI analysis chat",
-            key="gemini_key_input"
-        )
+        # Show warning when agent is working
+        if _is_streaming():
+            st.warning("Agent working... Controls disabled", icon=":material/hourglass_empty:")
 
         st.divider()
 
@@ -47,7 +43,8 @@ def render_sidebar() -> dict:
             "Asset Symbol",
             value=st.session_state.get("current_symbol", "EUR/USD"),
             placeholder="e.g., EUR/USD, AAPL, BTC/USD",
-            help="Enter a valid trading symbol"
+            help="Enter a valid trading symbol",
+            disabled=_is_streaming()
         )
 
         col1, col2 = st.columns(2)
@@ -57,7 +54,8 @@ def render_sidebar() -> dict:
                 "Interval",
                 options=["1min", "5min", "15min", "30min", "1h", "2h", "4h", "1day", "1week"],
                 index=6,  # Default to 4h
-                help="Chart timeframe"
+                help="Chart timeframe",
+                disabled=_is_streaming()
             )
 
         with col2:
@@ -67,7 +65,8 @@ def render_sidebar() -> dict:
                 max_value=300,
                 value=100,
                 step=10,
-                help="Number of candlesticks"
+                help="Number of candlesticks",
+                disabled=_is_streaming()
             )
 
         st.divider()
@@ -77,31 +76,27 @@ def render_sidebar() -> dict:
 
         col1, col2 = st.columns(2)
         with col1:
-            ema_10 = st.checkbox("EMA 10", value=False)
-            ema_50 = st.checkbox("EMA 50", value=True)
+            ema_10 = st.checkbox("EMA 10", value=False, disabled=_is_streaming())
+            ema_50 = st.checkbox("EMA 50", value=True, disabled=_is_streaming())
         with col2:
-            ema_20 = st.checkbox("EMA 20", value=True)
-            ema_100 = st.checkbox("EMA 100", value=False)
+            ema_20 = st.checkbox("EMA 20", value=True, disabled=_is_streaming())
+            ema_100 = st.checkbox("EMA 100", value=False, disabled=_is_streaming())
 
-        bb = st.checkbox("Bollinger Bands", value=False)
+        bb = st.checkbox("Bollinger Bands", value=False, disabled=_is_streaming())
 
         st.markdown('<p class="sidebar-section">Subplot Indicators</p>', unsafe_allow_html=True)
 
         col1, col2, col3 = st.columns(3)
         with col1:
-            rsi = st.checkbox("RSI", value=False)
+            rsi = st.checkbox("RSI", value=False, disabled=_is_streaming())
         with col2:
-            macd = st.checkbox("MACD", value=False)
+            macd = st.checkbox("MACD", value=False, disabled=_is_streaming())
         with col3:
-            atr = st.checkbox("ATR", value=False)
+            atr = st.checkbox("ATR", value=False, disabled=_is_streaming())
 
         st.markdown('<p class="sidebar-section">Price Levels</p>', unsafe_allow_html=True)
 
-        col1, col2 = st.columns(2)
-        with col1:
-            pivot = st.checkbox("Pivot Points", value=False)
-        with col2:
-            fibonacci = st.checkbox("Fibonacci", value=False)
+        pivot = st.checkbox("Pivot Points", value=False, disabled=_is_streaming())
 
         st.divider()
 
@@ -110,7 +105,8 @@ def render_sidebar() -> dict:
             "Load Chart",
             type="primary",
             use_container_width=True,
-            help="Fetch data and render chart"
+            help="Fetch data and render chart" if not _is_streaming() else "Please wait for agent to finish",
+            disabled=_is_streaming()
         )
 
         # Show status
@@ -124,16 +120,24 @@ def render_sidebar() -> dict:
             "Clear Conversation",
             type="secondary",
             use_container_width=True,
-            help="Clear chat history and start fresh"
+            help="Clear chat history and start fresh" if not _is_streaming() else "Please wait for agent to finish",
+            disabled=_is_streaming()
         )
 
         if clear_clicked:
-            st.session_state.messages = []
-            st.session_state.pending_tasks = {}
-            st.session_state.thread_id = str(uuid.uuid4())  # New thread for fresh conversation
-            st.rerun()
+            if _is_streaming():
+                # Queue the clear for when streaming finishes
+                st.session_state.pending_clear_conversation = True
+                st.toast("Will clear after agent finishes")
+            else:
+                st.session_state.messages = []
+                st.session_state.pending_tasks = {}
+                st.session_state.thread_id = str(uuid.uuid4())  # New thread for fresh conversation
+                st.rerun()
 
         # === Return Settings ===
+        # Get API key from session state (set during landing page)
+        gemini_api_key = st.session_state.get("gemini_api_key", "")
         return {
             "gemini_api_key": gemini_api_key,
             "symbol": symbol.strip().upper() if symbol else "",
@@ -149,7 +153,6 @@ def render_sidebar() -> dict:
                 "macd": macd,
                 "atr": atr,
                 "pivot": pivot,
-                "fibonacci": fibonacci,
                 "volume": True,  # Always show volume if available
             },
             "load_clicked": load_clicked,

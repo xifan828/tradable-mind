@@ -342,7 +342,7 @@ Reflection should address:
 # ChartAnalysisInput:
 #     asset
 #     interval
-#     indicator: Literal["ema", "rsi", "macd", "atr", "bb", "pivot", "fibonacci", "none"]
+#     indicator: Literal["ema", "rsi", "macd", "atr", "bb", "pivot", "none"]
 
 # task_description:
 #     Question: [Precise visual analysis question]
