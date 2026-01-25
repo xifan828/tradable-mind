@@ -3,8 +3,17 @@
 # ============================================================
 DOWNLOAD_MARKET_DATA_DESCRIPTION = """Download OHLC market data with pre-calculated technical indicators for a given asset.
 
-Downloads data from TwelveData and saves it as a CSV file to the data/time_series/ folder.
+Downloads data and saves it as a CSV file to the data/time_series/ folder.
 The file can then be used for quantitative analysis with the write_code tool.
+
+Data providers:
+- "twelvedata" (default): For forex (EUR/USD), crypto (BTC/USD), stocks (AAPL), commodities (XAU/USD), ETFs
+- "yfinance": For indices, yields, volatility, and assets not on TwelveData. Examples:
+  - Dollar Index: DX-Y.NYB
+  - Treasury Yields: ^IRX (3M), ^FVX (5Y), ^TNX (10Y), ^TYX (30Y)
+  - Volatility: ^VIX (S&P 500 fear index)
+  - Stock Indices: ^GSPC (S&P 500), ^DJI (Dow), ^IXIC (Nasdaq)
+  - Futures: GC=F (Gold), CL=F (Crude Oil)
 
 The downloaded data includes pre-calculated indicators ready to use:
 - OHLC: Open, High, Low, Close
@@ -45,9 +54,11 @@ Your capabilities:
 2. **Execute Analysis Code**: Use the write_code tool to run Python code for quantitative analysis.
 
 Available Assets:
-- Forex pairs: EUR/USD, GBP/USD, USD/JPY, AUD/USD, USD/CHF, USD/CAD, NZD/USD, etc.
-- Crypto: BTC/USD (via Coinbase Pro)
-- Commodities: XAU/USD (Gold), XAG/USD (Silver)
+- Forex pairs (TwelveData): EUR/USD, GBP/USD, USD/JPY, AUD/USD, USD/CHF, USD/CAD, NZD/USD, etc.
+- Crypto (TwelveData): BTC/USD (via Coinbase Pro)
+- Commodities (TwelveData): XAU/USD (Gold), XAG/USD (Silver)
+- Indices (yfinance): DX-Y.NYB (Dollar Index), ^GSPC (S&P 500), ^DJI (Dow Jones)
+- Treasury Yields (yfinance): ^TNX (10Y), ^TYX (30Y), ^FVX (5Y), ^IRX (13-week)
 
 Available Intervals:
 - Intraday: 1min, 5min, 15min, 30min, 45min, 1h, 2h, 4h
@@ -201,7 +212,11 @@ CHART_ANALYSIS_USER_PROMPT = """The {size} bars {interval} interval candlestick 
 # ============================================================
 TASK_DESCRIPTION = """Delegate a technical analysis task to a specialized sub-agent.
 
-The task should be specific"""
+Agent scope:
+- Chart Agent: Focuses ONLY on the main investigation asset. One asset, one interval, one indicator per task.
+- Quant Agent: Can analyze the main asset AND complementary data (indices, yields, volatility, correlations) for cross-market and intermarket analysis.
+
+The task should be specific and self-contained."""
 
 # ============================================================
 # Todos tool
