@@ -1,6 +1,9 @@
 from langchain.tools import ToolRuntime, tool
 from langchain_core.messages import HumanMessage
 from typing import Literal
+import random
+import shutil
+from pathlib import Path
 
 from src.agents.chart_agent import chart_analysis_agent, chart_description_agent
 from src.agents.quant_agent import quant_agent
@@ -9,6 +12,10 @@ from src.prompts.technical_analysis import CHART_DESCRIPTION_USER_PROMPT, CHART_
 from src.utils.constants import get_decimal_places
 from src.utils.llm import parse_langchain_ai_message
 from src.states_and_contexts.technical_analysis import ChartAnalysisInput, QuantAgentContext, ChartAgentContext
+from src.config.settings import BASE_DIR
+
+# Base directory for session temp directories
+QUANT_DATA_BASE_DIR = BASE_DIR / "data" / "time_series"
 
 
 class ChartAnalysisTask:
@@ -188,23 +195,33 @@ async def task(
 
     elif task_type == "quantitative":
         from langchain_core.messages import HumanMessage
-        import os
+
+        # Create session-specific temp directory with random 6-digit number
+        session_id = f"{random.randint(100000, 999999)}"
+        session_data_dir = QUANT_DATA_BASE_DIR / session_id
+        session_data_dir.mkdir(parents=True, exist_ok=True)
 
         quant_context = QuantAgentContext(
             api_key=context.api_key,
             model_name=context.model_name,
+            session_data_dir=str(session_data_dir),
         )
 
-        result = await quant_agent.ainvoke(
-            {"messages": [HumanMessage(content=task_description)], "downloaded_files": []},
-            context=quant_context
-        )
+        try:
+            result = await quant_agent.ainvoke(
+                {"messages": [HumanMessage(content=task_description)], "downloaded_files": []},
+                context=quant_context
+            )
 
-        messages = result.get("messages", [])
-        if messages:
-            last_msg = messages[-1]
-            return last_msg.content[0]["text"] 
-        return "No response from quantitative agent."
+            messages = result.get("messages", [])
+            if messages:
+                last_msg = messages[-1]
+                return last_msg.content[0]["text"]
+            return "No response from quantitative agent."
+        finally:
+            # Clean up session temp directory
+            if session_data_dir.exists():
+                shutil.rmtree(session_data_dir, ignore_errors=True)
 
     else:
         return f"Error: Unknown task_type '{task_type}'. Must be 'chart' or 'quantitative'."

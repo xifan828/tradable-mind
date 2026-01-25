@@ -99,10 +99,19 @@ if __name__ == "__main__":
 
     async def main():
         import time
+        import random
+        import shutil
+        from src.config.settings import BASE_DIR
+
+        # Create a test session directory
+        session_id = f"{random.randint(100000, 999999)}"
+        session_data_dir = BASE_DIR / "data" / "time_series" / session_id
+        session_data_dir.mkdir(parents=True, exist_ok=True)
 
         context = QuantAgentContext(
             api_key=os.getenv("GEMINI_API_KEY"),
             model_name="models/gemini-3-flash-preview",
+            session_data_dir=str(session_data_dir),
         )
 
         # Run two agents in parallel to test ProcessPoolExecutor
@@ -152,5 +161,10 @@ if __name__ == "__main__":
         print(f"Sum of individual times: {sum(r['elapsed'] for r in results):.2f}s")
         print(f"Parallelism benefit: {sum(r['elapsed'] for r in results) - total_elapsed:.2f}s saved")
         print("=" * 80)
+
+        # Clean up test session directory
+        if session_data_dir.exists():
+            shutil.rmtree(session_data_dir, ignore_errors=True)
+            print(f"Cleaned up session directory: {session_data_dir}")
 
     asyncio.run(main())

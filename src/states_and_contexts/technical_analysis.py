@@ -22,8 +22,9 @@ class QuantAgentState(AgentState):
 class QuantAgentContext:
     """Runtime context for the quant analysis agent."""
     api_key: str
-    model_name: str = "models/gemini-3-flash-preview"  
-    max_iterations: int = 10 
+    model_name: str = "models/gemini-3-flash-preview"
+    max_iterations: int = 10
+    session_data_dir: str | None = None  # Session-specific temp directory for data files 
 
 # ========================================
 # Chart Agent

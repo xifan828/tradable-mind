@@ -20,7 +20,8 @@ from src.prompts.technical_analysis import (DOWNLOAD_MARKET_DATA_DESCRIPTION,
                                             WRITE_CODE_DESCRIPTION
                                             )
 
-DATA_DIR = BASE_DIR / "data" / "time_series"
+# Default data directory (used as fallback if no session directory)
+DEFAULT_DATA_DIR = BASE_DIR / "data" / "time_series"
 
 @tool(description=DOWNLOAD_MARKET_DATA_DESCRIPTION, parse_docstring=True)
 def download_market_data(
@@ -59,11 +60,13 @@ def download_market_data(
         if df is None or df.empty:
             return f"Error: No data returned for {ticker} at {interval} interval."
 
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        # Use session-specific directory if available, otherwise default
+        data_dir = Path(runtime.context.session_data_dir) if runtime.context.session_data_dir else DEFAULT_DATA_DIR
+        data_dir.mkdir(parents=True, exist_ok=True)
 
         ticker_clean = ticker.replace("/", "_")
         filename = f"{ticker_clean}_{interval}.csv"
-        filepath = DATA_DIR / filename
+        filepath = data_dir / filename
 
         df.to_csv(filepath, index=True)
 
@@ -197,8 +200,13 @@ def _create_safe_builtins():
     return safe_builtins
 
 
-def _execute_sandboxed_code(code: str) -> str:
-    """Execute Python code in a sandboxed environment."""
+def _execute_sandboxed_code(code: str, data_dir: Path) -> str:
+    """Execute Python code in a sandboxed environment.
+
+    Args:
+        code: Python code to execute
+        data_dir: Directory where data files are stored (session-specific)
+    """
 
     old_stdout = sys.stdout
     old_stderr = sys.stderr
@@ -218,21 +226,21 @@ def _execute_sandboxed_code(code: str) -> str:
         safe_globals['math'] = math
         safe_globals['talib'] = talib
 
-        safe_globals['open'] = _create_safe_open(DATA_DIR)
+        safe_globals['open'] = _create_safe_open(data_dir)
 
         def safe_read_csv(filepath, **kwargs):
-            """Read CSV file from the data/time_series directory.
+            """Read CSV file from the session data directory.
 
             Automatically parses the Date column as datetime and sets it as index.
             """
             resolved = Path(filepath)
             if not resolved.is_absolute():
-                resolved = DATA_DIR / filepath
+                resolved = data_dir / filepath
 
             try:
-                resolved.resolve().relative_to(DATA_DIR.resolve())
+                resolved.resolve().relative_to(data_dir.resolve())
             except ValueError:
-                raise PermissionError(f"Access denied. Only files in {DATA_DIR} can be read.")
+                raise PermissionError(f"Access denied. Only files in {data_dir} can be read.")
 
             # Set smart defaults for market data CSVs
             # Use first column as index (which is numeric), but also parse Date column
@@ -248,7 +256,7 @@ def _execute_sandboxed_code(code: str) -> str:
             return df
 
         safe_globals['read_csv'] = safe_read_csv
-        safe_globals['DATA_DIR'] = str(DATA_DIR)
+        safe_globals['DATA_DIR'] = str(data_dir)
 
         safe_locals = {}
 
@@ -279,9 +287,10 @@ def _execute_sandboxed_code(code: str) -> str:
 @tool(description=WRITE_CODE_DESCRIPTION, parse_docstring=True)
 async def write_code(
     code: str,
+    runtime: ToolRuntime,
 ) -> str:
     """Execute Python code for quantitative analysis in a sandboxed environment.
-    
+
     Args:
         code: Python code string to execute. Use print() to output results.
 
@@ -296,10 +305,13 @@ async def write_code(
         if pattern.lower() in code_lower:
             return f"Error: Blocked pattern detected: '{pattern}'. This operation is not allowed for security reasons."
 
-    # Run code execution in a separate process to avoid blocking the event loop
+    # Use session-specific directory if available, otherwise default
+    data_dir = Path(runtime.context.session_data_dir) if runtime.context.session_data_dir else DEFAULT_DATA_DIR
+
+    # Run code execution in a separate thread to avoid blocking the event loop
     loop = asyncio.get_event_loop()
     executor = _get_executor()
-    result = await loop.run_in_executor(executor, _execute_sandboxed_code, code)
+    result = await loop.run_in_executor(executor, _execute_sandboxed_code, code, data_dir)
 
     max_length = 10000
     if len(result) > max_length:
