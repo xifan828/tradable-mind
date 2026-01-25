@@ -27,14 +27,16 @@ def download_market_data(
     ticker: str,
     interval: str,
     runtime: ToolRuntime,
+    data_provider: str = "twelvedata",
     timezone: str = "UTC",
     outputsize: int = 4000,
 ) -> Command | str:
     """Download OHLC market data with pre-calculated technical indicators for a given asset.
 
-    Args:   
-        ticker: Asset ticker symbol (e.g., "EUR/USD", "BTC/USD", "XAU/USD", "GBP/USD")
+    Args:
+        ticker: Asset ticker symbol (e.g., "EUR/USD", "BTC/USD", "XAU/USD", "GBP/USD" for TwelveData; "DX-Y.NYB", "^TNX" for yfinance)
         interval: Time interval for the data (e.g., "1min", "5min", "15min", "30min", "1h", "4h", "1day", "1week")
+        data_provider: Data source - "twelvedata" (default) for forex/crypto/stocks/commodities, "yfinance" for indices/treasury yields
         timezone: Timezone for the data (default: "UTC"). Examples: "America/New_York", "Europe/London"
         outputsize: Number of data points to fetch (default: 4000, max: 5000)
 
@@ -49,7 +51,10 @@ def download_market_data(
             interval=interval
         )
 
-        df = service.get_data_from_td(outputsize=outputsize)
+        if data_provider == "yfinance":
+            df = service.get_data_from_yfinance(outputsize=outputsize)
+        else:
+            df = service.get_data_from_td(outputsize=outputsize)
 
         if df is None or df.empty:
             return f"Error: No data returned for {ticker} at {interval} interval."
@@ -96,7 +101,7 @@ df[df['Date'] >= df['Date'].max() - pd.Timedelta(days=30)]
         )
 
     except Exception as e:
-        return f"Error downloading data for {ticker}: {str(e)}"
+        return f"Error downloading data for {ticker}: {str(e)}. Try fix it if you can."
     
 _code_executor: ThreadPoolExecutor | None = None
 

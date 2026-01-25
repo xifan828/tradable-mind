@@ -1,4 +1,5 @@
 from src.utils.twelve_data import TwelveData
+from src.utils.yfinance_data import YFinanceData
 from src.utils.charts import TechnicalCharts
 from typing import Literal
 import pandas as pd
@@ -17,8 +18,23 @@ class TechnicalIndicatorService:
             **kwargs
         )
         return td.get_data_with_ti()
-    
-    
+
+    def get_data_from_yfinance(self, **kwargs) -> pd.DataFrame:
+        """Fetch data from yfinance with technical indicators.
+
+        Use this for assets not available on TwelveData:
+        - Dollar Index: DX-Y.NYB
+        - Treasury Yields: ^TNX (10Y), ^TYX (30Y), ^FVX (5Y)
+        - Other indices and ETFs
+        """
+        yf_data = YFinanceData(
+            symbol=self.symbol,
+            interval=self.interval,
+            timezone=self.timezone,
+            **kwargs
+        )
+        return yf_data.get_data_with_ti()
+
     def prepare_data(self, data_source: Literal["TwelveData", "IBKR"], **kwargs) -> pd.DataFrame:
         if data_source == "TwelveData":
             data = self.get_data_from_td(**kwargs)
