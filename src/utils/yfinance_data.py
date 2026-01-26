@@ -2,7 +2,9 @@ import yfinance as yf
 import pandas as pd
 import talib
 import pytz
-from typing import Optional
+from typing import Literal, Optional
+
+AssetType = Literal["forex", "commodity", "crypto", "stock"]
 
 
 class YFinanceData:
@@ -32,6 +34,7 @@ class YFinanceData:
         interval: str,
         outputsize: int = 400,
         timezone: str = "UTC",
+        asset_type: AssetType = None,
     ):
         """Initialize YFinanceData.
 
@@ -40,11 +43,14 @@ class YFinanceData:
             interval: Time interval in TwelveData format (e.g., "1h", "4h", "1day")
             outputsize: Number of data points to fetch (approximate)
             timezone: Target timezone for the data
+            asset_type: Asset type for trading hours filtering ("forex", "commodity", "crypto", "stock")
         """
         self.symbol = symbol
+        self.original_interval = interval  # Keep original for filtering logic
         self.interval = self._map_interval(interval)
         self.outputsize = outputsize
         self.timezone = timezone
+        self.asset_type = asset_type
 
     def _map_interval(self, interval: str) -> str:
         """Map TwelveData interval format to yfinance format."""
@@ -156,6 +162,45 @@ class YFinanceData:
 
         return df
 
+    def _filter_non_trading_hours(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Filter out non-trading hours for forex/commodity assets.
+
+        Forex/commodity markets are closed:
+        - Daily interval: Saturday and Sunday
+        - Intraday: All Saturday, Friday >= 22:00 UTC, Sunday < 22:00 UTC
+        """
+        if self.asset_type not in ("forex", "commodity"):
+            return df
+
+        if df is None or df.empty:
+            return df
+
+        # Get the date column
+        date_col = df['Date']
+
+        # Convert to UTC if timezone-aware
+        if date_col.dt.tz is not None:
+            dates_utc = date_col.dt.tz_convert('UTC')
+        else:
+            dates_utc = date_col
+
+        day_of_week = dates_utc.dt.dayofweek  # Monday=0, Sunday=6
+        hour = dates_utc.dt.hour
+
+        if self.original_interval == "1day":
+            # Daily: remove Saturday (5) and Sunday (6)
+            mask = ~day_of_week.isin([5, 6])
+        else:
+            # Intraday: forex hours filter
+            # Remove: all Saturday, Friday >= 22:00, Sunday < 22:00
+            is_saturday = day_of_week == 5
+            is_friday_after_close = (day_of_week == 4) & (hour >= 22)
+            is_sunday_before_open = (day_of_week == 6) & (hour < 22)
+
+            mask = ~(is_saturday | is_friday_after_close | is_sunday_before_open)
+
+        return df[mask].reset_index(drop=True)
+
     def get_data(self) -> Optional[pd.DataFrame]:
         """Fetch OHLC data from yfinance without technical indicators."""
         try:
@@ -185,6 +230,9 @@ class YFinanceData:
             # Limit to outputsize
             if len(df) > self.outputsize:
                 df = df.tail(self.outputsize).reset_index(drop=True)
+
+            # Filter non-trading hours for forex/commodity
+            df = self._filter_non_trading_hours(df)
 
             return df
 
@@ -229,6 +277,9 @@ class YFinanceData:
             # Limit to outputsize (from the end to get most recent data)
             if len(df) > self.outputsize:
                 df = df.tail(self.outputsize).reset_index(drop=True)
+
+            # Filter non-trading hours for forex/commodity
+            df = self._filter_non_trading_hours(df)
 
             return df
 

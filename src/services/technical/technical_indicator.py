@@ -1,20 +1,22 @@
-from src.utils.twelve_data import TwelveData
+from src.utils.twelve_data import TwelveData, AssetType
 from src.utils.yfinance_data import YFinanceData
 from src.utils.charts import TechnicalCharts
 from typing import Literal
 import pandas as pd
 
 class TechnicalIndicatorService:
-    def __init__(self, symbol: str, timezone: str, interval: str):
+    def __init__(self, symbol: str, timezone: str, interval: str, asset_type: AssetType | None = None):
         self.symbol = symbol
         self.timezone = timezone
         self.interval = interval
+        self.asset_type = asset_type
 
     def get_data_from_td(self, **kwargs) -> pd.DataFrame:
         td = TwelveData(
             symbol=self.symbol,
             timezone=self.timezone,
             interval=self.interval,
+            asset_type=self.asset_type,
             **kwargs
         )
         return td.get_data_with_ti()
@@ -31,6 +33,7 @@ class TechnicalIndicatorService:
             symbol=self.symbol,
             interval=self.interval,
             timezone=self.timezone,
+            asset_type=self.asset_type,
             **kwargs
         )
         return yf_data.get_data_with_ti()
@@ -48,17 +51,16 @@ class TechnicalIndicatorService:
 
         return data
 
-    def get_pivot_levels(self, interval: str, **kwargs) -> dict:
-        """Get pivot points calculated from the previous candle at specified interval."""
+    def get_pivot_levels(self, **kwargs) -> dict:
+        """Get pivot points calculated from the previous day's OHLC."""
         td = TwelveData(
             symbol=self.symbol,
             timezone=self.timezone,
-            interval=interval,
-            outputsize=10,
+            interval="1day",
+            asset_type=self.asset_type,
             **kwargs
         )
-        df = td.get_data()
-        return td.calculate_pivot_points(df)
+        return td.calculate_pivot_points()
 
     def get_fibonacci_levels(self, lookback: int = 50, **kwargs) -> dict:
         """Get Fibonacci retracement levels from recent high/low over lookback period."""
@@ -67,6 +69,7 @@ class TechnicalIndicatorService:
             timezone=self.timezone,
             outputsize=max(lookback + 10, 60),
             interval=self.interval,
+            asset_type=self.asset_type,
             **kwargs
         )
         df = td.get_data()

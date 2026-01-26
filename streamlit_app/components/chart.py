@@ -7,25 +7,34 @@ from plotly.subplots import make_subplots
 from streamlit_app.utils.styles import CHART_COLORS
 
 
-def filter_weekend_data(df: pd.DataFrame, interval: str) -> pd.DataFrame:
-    """Filter out weekend data (Saturday and Sunday) from the DataFrame."""
+def prepare_chart_data(df: pd.DataFrame, interval: str) -> pd.DataFrame:
+    """Normalize chart data for plotting.
+
+    Notes:
+        - This function intentionally does NOT filter out any timestamps.
+        - The x-axis is rendered as categorical (see apply_dark_theme), so
+          missing timestamps won't create visual gaps.
+    """
     if df is None or df.empty:
         return df
 
-    # Ensure Date column is datetime
     df = df.copy()
-    df["Date"] = pd.to_datetime(df["Date"])
 
-    # Filter out Saturday (5) and Sunday (6)
-    mask = df["Date"].dt.dayofweek < 5
-    df = df[mask].reset_index(drop=True)
-
-    # Format date labels based on interval
-    if interval in ["1day", "1week", "1month"]:
-        df["DateLabel"] = df["Date"].dt.strftime("%b %d")
+    # Ensure we have a Date column (some pipelines keep Date in the index)
+    if "Date" not in df.columns:
+        if isinstance(df.index, pd.DatetimeIndex):
+            df["Date"] = df.index
+        else:
+            df["Date"] = pd.to_datetime(df.index, errors="coerce")
     else:
-        # Intraday intervals - show date and time
-        df["DateLabel"] = df["Date"].dt.strftime("%b %d %H:%M")
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+
+    # Create a unique, readable label for categorical x-axis.
+    # Include year to avoid collisions across longer ranges.
+    if interval in ["1day", "1week", "1month"]:
+        df["DateLabel"] = df["Date"].dt.strftime("%Y-%m-%d")
+    else:
+        df["DateLabel"] = df["Date"].dt.strftime("%Y-%m-%d %H:%M")
 
     return df
 
@@ -50,8 +59,8 @@ def create_candlestick_chart(
     Returns:
         Plotly Figure object
     """
-    # Filter out weekend data and format labels
-    df = filter_weekend_data(df, interval)
+    # Data is already cleaned upstream; just normalize Date/labels for plotting.
+    df = prepare_chart_data(df, interval)
 
     # Determine subplot configuration
     subplot_indicators = []
@@ -188,11 +197,11 @@ def create_candlestick_chart(
         current_row += 1
 
     # RSI
-    if "RSI" in subplot_indicators and "RSI" in df.columns:
+    if "RSI" in subplot_indicators and "RSI14" in df.columns:
         fig.add_trace(
             go.Scatter(
                 x=df["DateLabel"],
-                y=df["RSI"],
+                y=df["RSI14"],
                 name="RSI(14)",
                 line=dict(color=CHART_COLORS["rsi"], width=1.5),
                 hovertemplate="RSI: %{y:.2f}<extra></extra>",
@@ -235,12 +244,12 @@ def create_candlestick_chart(
         # Histogram
         hist_colors = [
             CHART_COLORS["macd_hist_pos"] if val >= 0 else CHART_COLORS["macd_hist_neg"]
-            for val in df["MACD_Hist"]
+            for val in df["MACD_Diff"]
         ]
         fig.add_trace(
             go.Bar(
                 x=df["DateLabel"],
-                y=df["MACD_Hist"],
+                y=df["MACD_Diff"],
                 name="Histogram",
                 marker_color=hist_colors,
                 hovertemplate="Hist: %{y:.4f}<extra></extra>",

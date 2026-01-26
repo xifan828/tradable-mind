@@ -8,12 +8,7 @@ The file can then be used for quantitative analysis with the write_code tool.
 
 Data providers:
 - "twelvedata" (default): For forex (EUR/USD), crypto (BTC/USD), stocks (AAPL), commodities (XAU/USD), ETFs
-- "yfinance": For indices, yields, volatility, and assets not on TwelveData. Examples:
-  - Dollar Index: DX-Y.NYB
-  - Treasury Yields: ^IRX (3M), ^FVX (5Y), ^TNX (10Y), ^TYX (30Y)
-  - Volatility: ^VIX (S&P 500 fear index)
-  - Stock Indices: ^GSPC (S&P 500), ^DJI (Dow), ^IXIC (Nasdaq)
-  - Futures: GC=F (Gold), CL=F (Crude Oil)
+- "yfinance": For indices (DX-Y.NYB for dollar index), treasury yields (^TNX for 10Y, ^TYX for 30Y, ^FVX for 5Y), and assets not on TwelveData
 
 The downloaded data includes pre-calculated indicators ready to use:
 - OHLC: Open, High, Low, Close
@@ -53,12 +48,12 @@ Your capabilities:
 1. **Download Market Data**: Use the download_market_data tool to fetch OHLC data with technical indicators for any supported asset.
 2. **Execute Analysis Code**: Use the write_code tool to run Python code for quantitative analysis.
 
-Available Assets:
+Example Assets:
 - Forex pairs (TwelveData): EUR/USD, GBP/USD, USD/JPY, AUD/USD, USD/CHF, USD/CAD, NZD/USD, etc.
-- Crypto (TwelveData): BTC/USD (via Coinbase Pro)
-- Commodities (TwelveData): XAU/USD (Gold), XAG/USD (Silver)
-- Indices (yfinance): DX-Y.NYB (Dollar Index), ^GSPC (S&P 500), ^DJI (Dow Jones)
-- Treasury Yields (yfinance): ^TNX (10Y), ^TYX (30Y), ^FVX (5Y), ^IRX (13-week)
+- Crypto (TwelveData): BTC/USD (via Coinbase Pro), ETH/USD, etc.
+- Commodities (TwelveData): XAU/USD (Gold), XAG/USD (Silver), etc.
+- Indices (yfinance): DX-Y.NYB (Dollar Index), ^GSPC (S&P 500), ^DJI (Dow Jones), etc.
+- Treasury Yields (yfinance): ^TNX (10Y), ^TYX (30Y), ^FVX (5Y), ^IRX (13-week), etc.
 
 Available Intervals:
 - Intraday: 1min, 5min, 15min, 30min, 45min, 1h, 2h, 4h
@@ -212,11 +207,7 @@ CHART_ANALYSIS_USER_PROMPT = """The {size} bars {interval} interval candlestick 
 # ============================================================
 TASK_DESCRIPTION = """Delegate a technical analysis task to a specialized sub-agent.
 
-Agent scope:
-- Chart Agent: Focuses ONLY on the main investigation asset. One asset, one interval, one indicator per task.
-- Quant Agent: Can analyze the main asset AND complementary data (indices, yields, volatility, correlations) for cross-market and intermarket analysis.
-
-The task should be specific and self-contained."""
+The task should be specific"""
 
 # ============================================================
 # Todos tool

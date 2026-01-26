@@ -23,7 +23,7 @@ from streamlit_app.components.chat import (
     add_message,
     process_user_input,
 )
-from streamlit_app.services.data_service import ChartDataService, fetch_cached_data, fetch_daily_change
+from streamlit_app.services.data_service import fetch_cached_data, fetch_daily_change, fetch_pivot_points
 
 
 # Page configuration - must be first Streamlit command
@@ -41,6 +41,7 @@ def initialize_session_state():
         "chart_data": None,
         "current_symbol": "EUR/USD",
         "current_interval": "4h",
+        "current_asset_type": "forex",  # Asset type for market hours filtering
         "chart_loaded": False,
         "pivot_levels": None,
         "daily_change": None,  # Store daily change data
@@ -290,6 +291,7 @@ def render_chat_section(settings: dict):
             "current_symbol": st.session_state.current_symbol,
             "current_interval": st.session_state.current_interval,
             "current_indicators": st.session_state.current_indicators,
+            "current_asset_type": st.session_state.current_asset_type,
         }
         st.session_state.is_streaming = True
         st.rerun()
@@ -316,6 +318,7 @@ def render_chat_section(settings: dict):
                 current_symbol=prompt_settings["current_symbol"],
                 current_interval=prompt_settings["current_interval"],
                 current_indicators=prompt_settings["current_indicators"],
+                current_asset_type=prompt_settings.get("current_asset_type"),
             ))
 
 
@@ -329,11 +332,12 @@ def load_chart_data(settings: dict):
 
     with st.spinner(f"Loading data for {settings['symbol']}..."):
         try:
-            # Fetch data
+            # Fetch data with asset_type for proper market hours filtering
             df = fetch_cached_data(
                 symbol=settings["symbol"],
                 interval=settings["interval"],
-                outputsize=settings["chart_size"]
+                outputsize=settings["chart_size"],
+                asset_type=settings.get("asset_type")
             )
 
             if df is None or df.empty:
@@ -341,19 +345,25 @@ def load_chart_data(settings: dict):
                 return False
 
             # Calculate levels if needed
-            service = ChartDataService()
             pivot_levels = None
 
             if settings["indicators"].get("pivot"):
-                pivot_levels = service.calculate_pivot_points(df)
+                pivot_levels = fetch_pivot_points(
+                    settings["symbol"],
+                    asset_type=settings.get("asset_type")
+                )
 
-            # Fetch daily change
-            daily_change = fetch_daily_change(settings["symbol"])
+            # Fetch daily change with asset_type for proper filtering
+            daily_change = fetch_daily_change(
+                settings["symbol"],
+                asset_type=settings.get("asset_type")
+            )
 
             # Update session state
             st.session_state.chart_data = df
             st.session_state.current_symbol = settings["symbol"]
             st.session_state.current_interval = settings["interval"]
+            st.session_state.current_asset_type = settings.get("asset_type", "forex")
             st.session_state.pivot_levels = pivot_levels
             st.session_state.daily_change = daily_change
             st.session_state.current_indicators = settings["indicators"]

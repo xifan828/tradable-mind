@@ -46,10 +46,14 @@ def download_market_data(
     """
 
     try:
+        # Get asset_type from context if available
+        asset_type = runtime.context.asset_type if hasattr(runtime.context, 'asset_type') else None
+
         service = TechnicalIndicatorService(
             symbol=ticker,
             timezone=timezone,
-            interval=interval
+            interval=interval,
+            asset_type=asset_type
         )
 
         if data_provider == "yfinance":

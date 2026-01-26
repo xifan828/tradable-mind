@@ -43,7 +43,8 @@ class ChartAnalysisTask:
         service = TechnicalIndicatorService(
             symbol=self.asset,
             interval=self.interval,
-            timezone="UTC"
+            timezone="UTC",
+            asset_type=self.context.asset_type if self.context else None
         )
         df = service.prepare_data(
             data_source="TwelveData",
@@ -57,7 +58,7 @@ class ChartAnalysisTask:
         pivot_levels = None
 
         if self.indicator == "pivot":
-            pivot_levels = service.get_pivot_levels(interval="1day", end_date=self.end_date)
+            pivot_levels = service.get_pivot_levels(end_date=self.end_date)
             encoded_chart = service.prepare_chart(
                 df=df,
                 size=self.size,
@@ -174,7 +175,8 @@ async def task(
             return "Error: chart_analysis_input is required for chart analysis tasks."
         chart_context = ChartAgentContext(
             api_key=context.api_key,
-            model_name=context.model_name
+            model_name=context.model_name,
+            asset_type=context.asset_type
         )
 
         chart_task = ChartAnalysisTask(
@@ -205,6 +207,7 @@ async def task(
             api_key=context.api_key,
             model_name=context.model_name,
             session_data_dir=str(session_data_dir),
+            asset_type=context.asset_type,
         )
 
         try:
