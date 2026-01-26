@@ -1,15 +1,20 @@
 from twelvedata import TDClient
 import pandas as pd
+import talib
 import os
 from pathlib import Path
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+from typing import Literal
 import asyncio
 import time
 
+AssetType = Literal["forex", "commodity", "crypto", "stock"]
+
+
 class TwelveData:
 
-    def __init__(self, symbol: str, interval: str, outputsize: int = 400, exchange: str = None, start_date: str = None, end_date: str = None, timezone: str = "UTC"):
+    def __init__(self, symbol: str, interval: str, outputsize: int = 400, exchange: str = None, start_date: str = None, end_date: str = None, timezone: str = "UTC", asset_type: AssetType = None):
         self.symbol = symbol
         self.interval = interval
         self.outputsize = outputsize
@@ -17,6 +22,7 @@ class TwelveData:
         self.start_date = start_date
         self.end_date = end_date
         self.timezone = timezone
+        self.asset_type = asset_type
         load_dotenv()
         self._init_client()
 
@@ -25,7 +31,101 @@ class TwelveData:
         if not api_key:
             raise ValueError("API key for TwelveData is not set in environment variables.")
         self.client = TDClient(apikey=api_key)
-    
+
+    def _filter_non_trading_hours(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Filter out non-trading hours for forex/commodity assets.
+
+        Forex/commodity markets are closed:
+        - Daily interval: Saturday and Sunday
+        - Intraday: All Saturday, Friday >= 22:00 UTC, Sunday < 22:00 UTC
+        """
+        if self.asset_type not in ("forex", "commodity"):
+            return df
+
+        if df is None or df.empty:
+            return df
+
+        # Determine if we have a 'Date' column or index-based dates
+        if 'Date' in df.columns:
+            date_col = df['Date']
+            has_date_column = True
+        else:
+            date_col = df.index
+            has_date_column = False
+
+        # Convert to UTC if timezone-aware
+        if hasattr(date_col, 'dt'):
+            if date_col.dt.tz is not None:
+                dates_utc = date_col.dt.tz_convert('UTC')
+            else:
+                dates_utc = date_col
+            day_of_week = dates_utc.dt.dayofweek  # Monday=0, Sunday=6
+            hour = dates_utc.dt.hour
+        else:
+            # Index might be DatetimeIndex
+            if date_col.tz is not None:
+                dates_utc = date_col.tz_convert('UTC')
+            else:
+                dates_utc = date_col
+            day_of_week = dates_utc.dayofweek
+            hour = dates_utc.hour
+
+        if self.interval == "1day":
+            # Daily: remove Saturday (5) and Sunday (6)
+            mask = ~day_of_week.isin([5, 6])
+        else:
+            # Intraday: forex hours filter
+            # Remove: all Saturday, Friday >= 22:00, Sunday < 22:00
+            is_saturday = day_of_week == 5
+            is_friday_after_close = (day_of_week == 4) & (hour >= 22)
+            is_sunday_before_open = (day_of_week == 6) & (hour < 22)
+
+            mask = ~(is_saturday | is_friday_after_close | is_sunday_before_open)
+
+        filtered_df = df[mask]
+
+        if has_date_column:
+            return filtered_df.reset_index(drop=True)
+        else:
+            return filtered_df
+
+    def _calculate_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Calculate technical indicators using TA-Lib on filtered data."""
+        if df is None or df.empty or len(df) < 100:
+            # Need enough data for EMA100
+            return df
+
+        close = df['Close'].values
+        high = df['High'].values
+        low = df['Low'].values
+
+        # EMAs
+        df['EMA10'] = talib.EMA(close, timeperiod=10)
+        df['EMA20'] = talib.EMA(close, timeperiod=20)
+        df['EMA50'] = talib.EMA(close, timeperiod=50)
+        df['EMA100'] = talib.EMA(close, timeperiod=100)
+
+        # Bollinger Bands
+        df['BB_Upper'], df['BB_Middle'], df['BB_Lower'] = talib.BBANDS(
+            close, timeperiod=20, nbdevup=2, nbdevdn=2, matype=0
+        )
+
+        # MACD
+        df['MACD'], df['MACD_Signal'], df['MACD_Diff'] = talib.MACD(
+            close, fastperiod=12, slowperiod=26, signalperiod=9
+        )
+
+        # RSI
+        df['RSI14'] = talib.RSI(close, timeperiod=14)
+
+        # ATR
+        df['ATR'] = talib.ATR(high, low, close, timeperiod=14)
+
+        # ROC
+        df['ROC12'] = talib.ROC(close, timeperiod=12)
+
+        return df
+
     async def aget_data(self) -> pd.DataFrame:
         """Async wrapper for get_data to avoid blocking the event loop"""
         loop = asyncio.get_event_loop()
@@ -47,61 +147,66 @@ class TwelveData:
             start_date=self.start_date,
             end_date=self.end_date,
             ).as_pandas()
-            data.columns = ["Open", "High", "Low", "Close"]
-            return data[::-1]
+            if len(data.columns) > 4:
+                data.columns = ["Open", "High", "Low", "Close", "Volume"]
+            else:
+                data.columns = ["Open", "High", "Low", "Close"]
+            data = data[::-1]
+            return self._filter_non_trading_hours(data)
+
         except Exception as e:
             print(f"Error fetching data: {e}")
             return None
     
     def get_data_with_ti(self) -> pd.DataFrame:
+        """Fetch OHLC data, filter non-trading hours, then calculate indicators using TA-Lib."""
         try:
-            ts = self.client.time_series(
+            # For forex/commodity, fetch extra data to compensate for weekend filtering
+            # Weekends are ~2/7 of the week, so fetch ~1.5x to ensure enough data after filtering
+            # Also need extra for indicator warmup (EMA100 needs 100 bars)
+            fetch_size = self.outputsize
+            if self.asset_type in ("forex", "commodity"):
+                # Fetch 1.5x + 100 extra for indicator warmup
+                fetch_size = int(self.outputsize * 1.5) + 100
+            else:
+                # For other assets, just add warmup buffer
+                fetch_size = self.outputsize + 100
+
+            # Fetch raw OHLC data
+            data = self.client.time_series(
                 symbol=self.symbol,
                 interval=self.interval,
-                outputsize=self.outputsize,
+                outputsize=fetch_size,
                 exchange=self.exchange,
                 timezone=self.timezone,
                 start_date=self.start_date,
                 end_date=self.end_date,
-            )
-            df = (
-                ts
-                .with_ema(time_period=10)
-                .with_ema(time_period=20)
-                .with_ema(time_period=50)
-                .with_ema(time_period=100)
-                .with_bbands(ma_type="SMA", sd=2, series_type="close", time_period=20)
-                .with_macd(fast_period=12, series_type="close", signal_period=9, slow_period=26)
-                .with_rsi(time_period=14)
-                .with_atr(time_period=14)
-                .with_roc(time_period=12)
-                .as_pandas()
-            )
-            df = df[::-1]
-            df = df.reset_index()
-            #df['datetime'] = df['datetime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+            ).as_pandas()
 
-            # rename columns
+            # Reverse to oldest-first and reset index
+            df = data[::-1].reset_index()
+
+            # Rename columns
             df = df.rename(columns={
                 "datetime": "Date",
                 "open": "Open",
                 "high": "High",
                 "low": "Low",
                 "close": "Close",
-                'ema1': 'EMA10',
-                'ema2': 'EMA20',
-                'ema3': 'EMA50',
-                'ema4': 'EMA100',
-                "upper_band": "BB_Upper",
-                "middle_band": "BB_Middle",
-                "lower_band": "BB_Lower",
-                "macd": "MACD",
-                "macd_signal": "MACD_Signal",
-                "macd_hist": "MACD_Diff",
-                "rsi": "RSI14",
-                "atr": "ATR",
-                "roc": "ROC12",
             })
+
+            # Keep only OHLC columns (drop volume if present)
+            df = df[['Date', 'Open', 'High', 'Low', 'Close']]
+
+            # Filter non-trading hours first
+            df = self._filter_non_trading_hours(df)
+
+            # Calculate indicators on filtered data using TA-Lib
+            df = self._calculate_indicators(df)
+
+            # Trim to requested outputsize (keep most recent bars)
+            if len(df) > self.outputsize:
+                df = df.tail(self.outputsize).reset_index(drop=True)
 
             return df
         except Exception as e:
@@ -124,23 +229,56 @@ class TwelveData:
             'fib_1': high,
         }
 
-    def calculate_pivot_points(self, df: pd.DataFrame) -> dict:
-        """Calculate standard pivot points from the previous period's OHLC"""
-        high = df['High'].iloc[-2]
-        low = df['Low'].iloc[-2]
-        close = df['Close'].iloc[-2]
+    def calculate_pivot_points(self) -> dict | None:
+        """Calculate standard pivot points from the previous day's OHLC.
 
-        pivot = (high + low + close) / 3
+        Always fetches daily data regardless of instance interval.
+        Uses the previous day's high, low, close to calculate pivot levels.
 
-        return {
-            'Pivot': pivot,
-            'R1': (2 * pivot) - low,
-            'R2': pivot + (high - low),
-            'R3': high + 2 * (pivot - low),
-            'S1': (2 * pivot) - high,
-            'S2': pivot - (high - low),
-            'S3': low - 2 * (high - pivot),
-        }
+        Returns:
+            Dictionary with Pivot, R1-R3, S1-S3 levels or None if error
+        """
+        try:
+            # Fetch daily data (enough for weekend filtering)
+            daily_data = self.client.time_series(
+                symbol=self.symbol,
+                interval="1day",
+                outputsize=5,
+                exchange=self.exchange,
+                timezone=self.timezone,
+            ).as_pandas()
+
+            if daily_data is None or len(daily_data) < 2:
+                return None
+
+            # Reverse to oldest-first
+            daily_data = daily_data[::-1]
+            daily_data.columns = ["Open", "High", "Low", "Close"] if len(daily_data.columns) == 4 else ["Open", "High", "Low", "Close", "Volume"]
+
+            # Filter weekends for forex/commodity
+            daily_data = self._filter_non_trading_hours(daily_data)
+
+            if len(daily_data) < 2:
+                return None
+
+            # Use previous day's OHLC (second-to-last row)
+            high = daily_data['High'].iloc[-2]
+            low = daily_data['Low'].iloc[-2]
+            close = daily_data['Close'].iloc[-2]
+
+            pivot = (high + low + close) / 3
+
+            return {
+                'Pivot': pivot,
+                'R1': (2 * pivot) - low,
+                'R2': pivot + (high - low),
+                'R3': high + 2 * (pivot - low),
+                'S1': (2 * pivot) - high,
+                'S2': pivot - (high - low),
+                'S3': low - 2 * (high - pivot),
+            }
+        except Exception:
+            return None
 
 
 
@@ -395,12 +533,23 @@ class TimeSeriesDownloader:
 
 if __name__ == "__main__":
     # Example: Using TimeSeriesDownloader with months parameter
-    downloader = TimeSeriesDownloader(
+    # downloader = TimeSeriesDownloader(
+    #     symbol="EUR/USD",
+    #     interval="1h",
+    #     months=12 * 5,  # Download 12 months of data
+    #     end_date="2025-12-29",
+    #     timezone="UTC",
+    # )
+    # filepath = downloader.download_and_save()
+    # print(f"Data saved to: {filepath}")
+
+    tw_data = TwelveData(
         symbol="EUR/USD",
-        interval="1h",
-        months=12 * 5,  # Download 12 months of data
-        end_date="2025-12-29",
-        timezone="UTC",
+       # exchange="OANDA",
+        interval="1day",
+        outputsize=100,
     )
-    filepath = downloader.download_and_save()
-    print(f"Data saved to: {filepath}")
+
+    df = tw_data.get_data()
+    print(df.head())
+    print(df.tail(20))

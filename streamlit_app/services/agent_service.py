@@ -189,11 +189,13 @@ def create_context(
     min_research_iterations: int = 2,
     max_research_iterations: int = 6,
     max_concurrent_tasks: int = 4,
+    asset_type: str | None = None,
 ) -> OrchestratorContext:
     """Create an OrchestratorContext with the given API key and settings."""
     return OrchestratorContext(
         api_key=gemini_api_key,
         min_research_iterations=min_research_iterations,
         max_research_iterations=max_research_iterations,
-        max_concurrent_tasks=max_concurrent_tasks
+        max_concurrent_tasks=max_concurrent_tasks,
+        asset_type=asset_type,
     )

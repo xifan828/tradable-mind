@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pydantic import BaseModel
 from typing import Literal, Optional
 
+from src.utils.twelve_data import AssetType
+
 def replace_todos(current: list | None, new: list) -> list:
     """Reducer that replaces todos with the latest value (last writer wins)."""
     return new
@@ -24,7 +26,8 @@ class QuantAgentContext:
     api_key: str
     model_name: str = "models/gemini-3-flash-preview"
     max_iterations: int = 10
-    session_data_dir: str | None = None  # Session-specific temp directory for data files 
+    session_data_dir: str | None = None  # Session-specific temp directory for data files
+    asset_type: AssetType | None = None  # Asset type for market hours filtering
 
 # ========================================
 # Chart Agent
@@ -37,10 +40,11 @@ class ChartAnalysisInput(BaseModel):
     end_date: Optional[str] = None
 
 @dataclass
-class ChartAgentContext: 
+class ChartAgentContext:
     """Runtime context for the chart analysis agent."""
     api_key: str
-    model_name: str = "models/gemini-3-flash-preview"  
+    model_name: str = "models/gemini-3-flash-preview"
+    asset_type: AssetType | None = None  # Asset type for market hours filtering
 
 # ========================================
 # Orchestrator Agent
@@ -59,3 +63,4 @@ class OrchestratorContext:
     max_research_iterations: int = 5
     max_concurrent_tasks: int = 4
     min_research_iterations: int = 2
+    asset_type: AssetType | None = None  # Asset type for market hours filtering

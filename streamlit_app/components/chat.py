@@ -451,7 +451,8 @@ async def process_user_input(
     gemini_api_key: str,
     current_symbol: str,
     current_interval: str,
-    current_indicators: dict | None = None
+    current_indicators: dict | None = None,
+    current_asset_type: str | None = None,
 ):
     """Process user input and stream agent response."""
     # Note: is_streaming flag is already set before rerun in app.py
@@ -478,6 +479,7 @@ User question: {user_input}"""
             min_research_iterations=st.session_state.min_research_iterations,
             max_research_iterations=st.session_state.max_research_iterations,
             max_concurrent_tasks=st.session_state.max_concurrent_tasks,
+            asset_type=current_asset_type,
         )
 
         status_placeholder = st.empty()

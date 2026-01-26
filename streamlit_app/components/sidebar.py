@@ -3,6 +3,14 @@
 import uuid
 import streamlit as st
 
+# Asset type examples for placeholder text
+ASSET_EXAMPLES = {
+    "forex": "e.g., EUR/USD, GBP/USD, USD/JPY",
+    "commodity": "e.g., XAU/USD, XAG/USD, USOIL",
+    "crypto": "e.g., BTC/USD, ETH/USD, SOL/USD",
+    "stock": "e.g., AAPL, MSFT, GOOGL",
+}
+
 
 def _is_streaming() -> bool:
     """Check if agent is currently streaming."""
@@ -39,10 +47,20 @@ def render_sidebar() -> dict:
         # === Asset & Chart Settings ===
         st.markdown('<p class="sidebar-section">Chart Settings</p>', unsafe_allow_html=True)
 
+        asset_type = st.selectbox(
+            "Asset Type",
+            options=["forex", "commodity", "crypto", "stock"],
+            index=["forex", "commodity", "crypto", "stock"].index(
+                st.session_state.get("current_asset_type", "forex")
+            ),
+            help="Select the asset type for proper market hours filtering",
+            disabled=_is_streaming()
+        )
+
         symbol = st.text_input(
             "Asset Symbol",
             value=st.session_state.get("current_symbol", "EUR/USD"),
-            placeholder="e.g., EUR/USD, AAPL, BTC/USD",
+            placeholder=ASSET_EXAMPLES.get(asset_type, ""),
             help="Enter a valid trading symbol",
             disabled=_is_streaming()
         )
@@ -140,6 +158,7 @@ def render_sidebar() -> dict:
         gemini_api_key = st.session_state.get("gemini_api_key", "")
         return {
             "gemini_api_key": gemini_api_key,
+            "asset_type": asset_type,
             "symbol": symbol.strip().upper() if symbol else "",
             "interval": interval,
             "chart_size": chart_size,
