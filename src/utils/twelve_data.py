@@ -166,11 +166,11 @@ class TwelveData:
             # Also need extra for indicator warmup (EMA100 needs 100 bars)
             fetch_size = self.outputsize
             if self.asset_type in ("forex", "commodity"):
-                # Fetch 1.5x + 100 extra for indicator warmup
-                fetch_size = int(self.outputsize * 1.5) + 100
+                # Fetch 1.5x + 200 extra for indicator warmup and weekend filtering
+                fetch_size = int(self.outputsize * 1.5) + 200
             else:
                 # For other assets, just add warmup buffer
-                fetch_size = self.outputsize + 100
+                fetch_size = self.outputsize + 200
 
             # Fetch raw OHLC data
             data = self.client.time_series(
