@@ -172,6 +172,9 @@ class TwelveData:
                 # For other assets, just add warmup buffer
                 fetch_size = self.outputsize + 200
 
+            # TwelveData API has a max of 5000 data points per request
+            fetch_size = min(fetch_size, 5000)
+
             # Fetch raw OHLC data
             data = self.client.time_series(
                 symbol=self.symbol,
@@ -229,42 +232,147 @@ class TwelveData:
             'fib_1': high,
         }
 
-    def calculate_pivot_points(self) -> dict | None:
-        """Calculate standard pivot points from the previous day's OHLC.
+    def _is_us_dst(self, dt: datetime) -> bool:
+        """Check if a given UTC datetime falls within US Daylight Saving Time.
 
-        Always fetches daily data regardless of instance interval.
-        Uses the previous day's high, low, close to calculate pivot levels.
+        US DST:
+        - Starts: Second Sunday in March at 2:00 AM local (07:00 UTC)
+        - Ends: First Sunday in November at 2:00 AM local (06:00 UTC)
+        """
+        year = dt.year
+
+        # Find second Sunday in March
+        march_first = datetime(year, 3, 1)
+        days_to_first_sunday = (6 - march_first.weekday()) % 7
+        first_sunday_march = march_first + timedelta(days=days_to_first_sunday)
+        second_sunday_march = first_sunday_march + timedelta(days=7)
+        dst_start = second_sunday_march.replace(hour=7, minute=0, second=0, microsecond=0)
+
+        # Find first Sunday in November
+        november_first = datetime(year, 11, 1)
+        days_to_first_sunday = (6 - november_first.weekday()) % 7
+        first_sunday_november = november_first + timedelta(days=days_to_first_sunday)
+        dst_end = first_sunday_november.replace(hour=6, minute=0, second=0, microsecond=0)
+
+        return dst_start <= dt < dst_end
+
+    def _get_previous_trading_day_ohlc(self, hourly_data: pd.DataFrame, day_start_hour: int) -> tuple | None:
+        """Extract high, low, close from the previous trading day's hourly bars.
+
+        Args:
+            hourly_data: DataFrame with hourly OHLC data (oldest-first, UTC timezone)
+            day_start_hour: Hour in UTC when the trading day starts (0 for crypto, 21/22 for forex)
+
+        Returns:
+            Tuple of (high, low, close) or None if insufficient data
+        """
+        now_utc = datetime.utcnow()
+
+        if day_start_hour == 0:
+            # Crypto: day boundary at UTC 00:00
+            current_day_start = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+        else:
+            # Forex/commodity: day boundary at 21:00 or 22:00 UTC
+            if now_utc.hour >= day_start_hour:
+                current_day_start = now_utc.replace(hour=day_start_hour, minute=0, second=0, microsecond=0)
+            else:
+                current_day_start = (now_utc - timedelta(days=1)).replace(hour=day_start_hour, minute=0, second=0, microsecond=0)
+
+        previous_day_start = current_day_start - timedelta(hours=24)
+
+        # Filter to previous trading day's bars
+        # Handle both timezone-aware and naive datetimes
+        dates = hourly_data['Date']
+        if dates.dt.tz is not None:
+            dates_naive = dates.dt.tz_localize(None)
+        else:
+            dates_naive = dates
+
+        mask = (dates_naive >= previous_day_start) & (dates_naive < current_day_start)
+        prev_day_data = hourly_data[mask]
+
+        if len(prev_day_data) < 20:  # Should have ~24 bars, allow some tolerance
+            return None
+
+        high = prev_day_data['High'].max()
+        low = prev_day_data['Low'].min()
+        close = prev_day_data['Close'].iloc[-1]  # Last bar's close
+
+        return high, low, close
+
+    def calculate_pivot_points(self) -> dict | None:
+        """Calculate standard pivot points from the previous trading day's OHLC.
+
+        For different asset types:
+        - Stock (or None): Uses daily data (previous day's bar)
+        - Crypto: Uses hourly data, previous UTC day (00:00-23:00)
+        - Forex/Commodity: Uses hourly data, previous trading day based on NY time
+          (DST: 21:00-20:00 UTC, Standard: 22:00-21:00 UTC)
 
         Returns:
             Dictionary with Pivot, R1-R3, S1-S3 levels or None if error
         """
         try:
-            # Fetch daily data (enough for weekend filtering)
-            daily_data = self.client.time_series(
-                symbol=self.symbol,
-                interval="1day",
-                outputsize=5,
-                exchange=self.exchange,
-                timezone=self.timezone,
-            ).as_pandas()
+            if self.asset_type in (None, "stock"):
+                # Original behavior for stocks
+                daily_data = self.client.time_series(
+                    symbol=self.symbol,
+                    interval="1day",
+                    outputsize=5,
+                    exchange=self.exchange,
+                    timezone=self.timezone,
+                ).as_pandas()
 
-            if daily_data is None or len(daily_data) < 2:
-                return None
+                if daily_data is None or len(daily_data) < 2:
+                    return None
 
-            # Reverse to oldest-first
-            daily_data = daily_data[::-1]
-            daily_data.columns = ["Open", "High", "Low", "Close"] if len(daily_data.columns) == 4 else ["Open", "High", "Low", "Close", "Volume"]
+                daily_data = daily_data[::-1]
+                daily_data.columns = ["Open", "High", "Low", "Close"] if len(daily_data.columns) == 4 else ["Open", "High", "Low", "Close", "Volume"]
 
-            # Filter weekends for forex/commodity
-            daily_data = self._filter_non_trading_hours(daily_data)
+                high = daily_data['High'].iloc[-2]
+                low = daily_data['Low'].iloc[-2]
+                close = daily_data['Close'].iloc[-2]
 
-            if len(daily_data) < 2:
-                return None
+            else:
+                # Crypto, forex, commodity: use hourly data
+                hourly_data = self.client.time_series(
+                    symbol=self.symbol,
+                    interval="1h",
+                    outputsize=72,  # ~3 days of hourly data
+                    exchange=self.exchange,
+                    timezone="UTC",
+                ).as_pandas()
 
-            # Use previous day's OHLC (second-to-last row)
-            high = daily_data['High'].iloc[-2]
-            low = daily_data['Low'].iloc[-2]
-            close = daily_data['Close'].iloc[-2]
+                if hourly_data is None or hourly_data.empty:
+                    return None
+
+                # Reverse to oldest-first and prepare DataFrame
+                hourly_data = hourly_data[::-1].reset_index()
+                hourly_data = hourly_data.rename(columns={
+                    "datetime": "Date",
+                    "open": "Open",
+                    "high": "High",
+                    "low": "Low",
+                    "close": "Close"
+                })
+
+                # Ensure Date column is datetime
+                hourly_data['Date'] = pd.to_datetime(hourly_data['Date'])
+
+                # Determine day start hour based on asset type
+                if self.asset_type == "crypto":
+                    day_start_hour = 0  # UTC 00:00
+                else:
+                    # Forex/commodity: check DST
+                    now_utc = datetime.utcnow()
+                    is_dst = self._is_us_dst(now_utc)
+                    day_start_hour = 21 if is_dst else 22
+
+                result = self._get_previous_trading_day_ohlc(hourly_data, day_start_hour)
+                if result is None:
+                    return None
+
+                high, low, close = result
 
             pivot = (high + low + close) / 3
 
