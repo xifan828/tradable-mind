@@ -176,6 +176,20 @@ DARK_THEME_CSS = """
         box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
     }
 
+    /* Text area styling - natural background */
+    .stTextArea > div > div > textarea {
+        background-color: #ffffff;
+        color: #1a1a1a;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+    }
+
+    .stTextArea > div > div > textarea:focus {
+        border-color: #1976d2;
+        box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+        background-color: #ffffff;
+    }
+
     /* Select boxes */
     .stSelectbox > div > div {
         background-color: #ffffff;
@@ -200,6 +214,32 @@ DARK_THEME_CSS = """
 
     .stButton > button:active {
         background-color: #0d47a1;
+    }
+
+    /* Secondary buttons - override for natural grey */
+    button[kind="secondary"],
+    button[data-testid="baseButton-secondary"] {
+        background-color: #f5f5f5 !important;
+        color: #1a1a1a !important;
+        border: 1px solid #e0e0e0 !important;
+    }
+
+    button[kind="secondary"]:hover,
+    button[data-testid="baseButton-secondary"]:hover {
+        background-color: #e0e0e0 !important;
+        border-color: #bdbdbd !important;
+    }
+
+    button[kind="secondary"]:active,
+    button[data-testid="baseButton-secondary"]:active {
+        background-color: #d0d0d0 !important;
+    }
+
+    button[kind="secondary"]:disabled,
+    button[data-testid="baseButton-secondary"]:disabled {
+        background-color: #fafafa !important;
+        color: #9e9e9e !important;
+        border-color: #f0f0f0 !important;
     }
 
     /* Checkboxes */
