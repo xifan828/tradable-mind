@@ -301,7 +301,7 @@ class TechnicalCharts:
         for i, ax in enumerate(all_axes):
             ax.xaxis.set_major_formatter(FuncFormatter(date_formatter))
             ax.xaxis.set_major_locator(MaxNLocator(integer=True, prune='both', nbins=20))
-            ax.set_xlim(0, len(ohlc_df) + 1)
+            ax.set_xlim(-1, len(ohlc_df) + 1)
             ax.yaxis.tick_right()
             ax.yaxis.set_label_position("right")
             if i == 0:

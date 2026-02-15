@@ -3,8 +3,12 @@
 # ============================================================
 DOWNLOAD_MARKET_DATA_DESCRIPTION = """Download OHLC market data with pre-calculated technical indicators for a given asset.
 
-Downloads data from TwelveData and saves it as a CSV file to the data/time_series/ folder.
+Downloads data and saves it as a CSV file to the data/time_series/ folder.
 The file can then be used for quantitative analysis with the write_code tool.
+
+Data providers:
+- "twelvedata" (default): For forex (EUR/USD), crypto (BTC/USD), stocks (AAPL), commodities (XAU/USD), ETFs
+- "yfinance": For indices (DX-Y.NYB for dollar index), treasury yields (^TNX for 10Y, ^TYX for 30Y, ^FVX for 5Y), and assets not on TwelveData
 
 The downloaded data includes pre-calculated indicators ready to use:
 - OHLC: Open, High, Low, Close
@@ -44,10 +48,12 @@ Your capabilities:
 1. **Download Market Data**: Use the download_market_data tool to fetch OHLC data with technical indicators for any supported asset.
 2. **Execute Analysis Code**: Use the write_code tool to run Python code for quantitative analysis.
 
-Available Assets:
-- Forex pairs: EUR/USD, GBP/USD, USD/JPY, AUD/USD, USD/CHF, USD/CAD, NZD/USD, etc.
-- Crypto: BTC/USD (via Coinbase Pro)
-- Commodities: XAU/USD (Gold), XAG/USD (Silver)
+Example Assets:
+- Forex pairs (TwelveData): EUR/USD, GBP/USD, USD/JPY, AUD/USD, USD/CHF, USD/CAD, NZD/USD, etc.
+- Crypto (TwelveData): BTC/USD (via Coinbase Pro), ETH/USD, etc.
+- Commodities (TwelveData): XAU/USD (Gold), XAG/USD (Silver), etc.
+- Indices (yfinance): DX-Y.NYB (Dollar Index), ^GSPC (S&P 500), ^DJI (Dow Jones), etc.
+- Treasury Yields (yfinance): ^TNX (10Y), ^TYX (30Y), ^FVX (5Y), ^IRX (13-week), etc.
 
 Available Intervals:
 - Intraday: 1min, 5min, 15min, 30min, 45min, 1h, 2h, 4h

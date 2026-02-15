@@ -14,7 +14,7 @@ sys.path.insert(0, str(project_root))
 import asyncio
 import streamlit as st
 
-from streamlit_app.utils.styles import inject_custom_css
+from streamlit_app.utils.styles import inject_custom_css, PIVOT_COLORS
 from streamlit_app.components.sidebar import render_sidebar, validate_inputs
 from streamlit_app.components.chart import create_candlestick_chart, get_latest_values
 from streamlit_app.components.chat import (
@@ -23,7 +23,16 @@ from streamlit_app.components.chat import (
     add_message,
     process_user_input,
 )
-from streamlit_app.services.data_service import ChartDataService, fetch_cached_data, fetch_daily_change
+from streamlit_app.services.data_service import fetch_cached_data, fetch_daily_change, fetch_pivot_points
+
+
+# Default question prompts for first-time users
+DEFAULT_QUESTIONS = [
+    "What's the overall picture here? Create a trading strategy.",
+    "Analyze the current market structure. What are the critical price levels to watch?",
+    "How strong is the current trend? Is momentum building or fading?",
+    "What does the historical data suggest about the current setup?"
+]
 
 
 # Page configuration - must be first Streamlit command
@@ -41,6 +50,7 @@ def initialize_session_state():
         "chart_data": None,
         "current_symbol": "EUR/USD",
         "current_interval": "4h",
+        "current_asset_type": "forex",  # Asset type for market hours filtering
         "chart_loaded": False,
         "pivot_levels": None,
         "daily_change": None,  # Store daily change data
@@ -58,6 +68,8 @@ def initialize_session_state():
         # Pending prompt (set before rerun to ensure sidebar is disabled)
         "pending_prompt": None,
         "pending_prompt_settings": None,
+        # Theme
+        "theme_mode": "light",
     }
 
     for key, value in defaults.items():
@@ -125,6 +137,7 @@ def render_chart_section(settings: dict):
         return
 
     df = st.session_state.chart_data
+    theme_mode = st.session_state.get("theme_mode", "light")
 
     # Price info row - compact layout
     latest = get_latest_values(df)
@@ -153,6 +166,7 @@ def render_chart_section(settings: dict):
 
         if show_pivot:
             pivot_levels = st.session_state.pivot_levels
+            pc = PIVOT_COLORS.get(theme_mode, PIVOT_COLORS["light"])
             # Single row layout with price info and pivot points inline
             st.markdown(
                 f"""
@@ -163,25 +177,25 @@ def render_chart_section(settings: dict):
                         {change_icon} {abs(change):.4f} ({change_pct:+.2f}%)
                     </span>
                     <span style="color: #9ca3af; margin: 0 0.25rem;">|</span>
-                    <span style="background: #fee2e2; color: #dc2626; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
+                    <span style="background: {pc['R3']['bg']}; color: {pc['R3']['text']}; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
                         R3: {pivot_levels.get('R3', 0):.4f}
                     </span>
-                    <span style="background: #fecaca; color: #dc2626; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
+                    <span style="background: {pc['R2']['bg']}; color: {pc['R2']['text']}; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
                         R2: {pivot_levels.get('R2', 0):.4f}
                     </span>
-                    <span style="background: #fef2f2; color: #dc2626; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
+                    <span style="background: {pc['R1']['bg']}; color: {pc['R1']['text']}; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
                         R1: {pivot_levels.get('R1', 0):.4f}
                     </span>
-                    <span style="background: #f3f4f6; color: #374151; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">
+                    <span style="background: {pc['Pivot']['bg']}; color: {pc['Pivot']['text']}; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">
                         P: {pivot_levels.get('Pivot', 0):.4f}
                     </span>
-                    <span style="background: #f0fdf4; color: #16a34a; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
+                    <span style="background: {pc['S1']['bg']}; color: {pc['S1']['text']}; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
                         S1: {pivot_levels.get('S1', 0):.4f}
                     </span>
-                    <span style="background: #bbf7d0; color: #16a34a; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
+                    <span style="background: {pc['S2']['bg']}; color: {pc['S2']['text']}; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
                         S2: {pivot_levels.get('S2', 0):.4f}
                     </span>
-                    <span style="background: #86efac; color: #16a34a; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
+                    <span style="background: {pc['S3']['bg']}; color: {pc['S3']['text']}; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
                         S3: {pivot_levels.get('S3', 0):.4f}
                     </span>
                 </div>
@@ -210,6 +224,7 @@ def render_chart_section(settings: dict):
         interval=st.session_state.current_interval,
         indicators=settings["indicators"],
         pivot_levels=st.session_state.pivot_levels,
+        theme_mode=theme_mode,
     )
 
     st.plotly_chart(fig, use_container_width=True, config={
@@ -276,20 +291,71 @@ def render_chat_section(settings: dict):
             icon=":material/key:"
         )
 
-    # Chat input (disabled during streaming)
+    # Chat input with send button (allows pre-filling from default questions)
     is_streaming = st.session_state.get("is_streaming", False)
-    if prompt := st.chat_input(
-        "Ask about the chart or request analysis..." if not is_streaming
-        else "Please wait for analysis to complete...",
-        disabled=not can_chat or is_streaming
-    ):
+
+    # Only show input controls when not streaming
+    if not is_streaming:
+        # Show default questions for first-time users
+        render_default_questions()
+
+        # Initialize chat_input_area if not present
+        if "chat_input_area" not in st.session_state:
+            st.session_state.chat_input_area = ""
+
+        # Check if we should clear the input (set by send button callback)
+        if st.session_state.get("clear_chat_input", False):
+            st.session_state.chat_input_area = ""
+            st.session_state.clear_chat_input = False
+
+        # Icon before text input
+        from streamlit_app.utils.styles import LIGHT_COLORS, DARK_COLORS
+        _tm = st.session_state.get("theme_mode", "light")
+        _colors = DARK_COLORS if _tm == "dark" else LIGHT_COLORS
+        st.markdown(
+            f'<div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; color: {_colors["text_primary"]};">'
+            '<span style="font-size: 1rem;">▶</span>'
+            '<span style="font-weight: 500;">Your Message</span>'
+            '</div>',
+            unsafe_allow_html=True
+        )
+
+        # Text area for message input
+        prompt = st.text_area(
+            "Message",
+            placeholder="Ask about the chart or request analysis...",
+            disabled=not can_chat,
+            key="chat_input_area",
+            height=100,
+            label_visibility="collapsed"
+        )
+
+        # Send button
+        col1, col2, col3 = st.columns([5, 1, 5])
+        with col2:
+            send_clicked = st.button(
+                "Send",
+                disabled=not can_chat or not prompt.strip(),
+                use_container_width=True,
+                type="primary"
+            )
+    else:
+        # During streaming, no input controls shown
+        send_clicked = False
+        prompt = ""
+
+    if send_clicked and prompt.strip():
+        # Set flag to clear input on next rerun
+        st.session_state.clear_chat_input = True
+
         # Store prompt and set streaming flag, then rerun to disable sidebar
-        st.session_state.pending_prompt = prompt
+        st.session_state.pending_prompt = prompt.strip()
         st.session_state.pending_prompt_settings = {
             "gemini_api_key": settings["gemini_api_key"],
             "current_symbol": st.session_state.current_symbol,
             "current_interval": st.session_state.current_interval,
             "current_indicators": st.session_state.current_indicators,
+            "current_asset_type": st.session_state.current_asset_type,
         }
         st.session_state.is_streaming = True
         st.rerun()
@@ -316,7 +382,81 @@ def render_chat_section(settings: dict):
                 current_symbol=prompt_settings["current_symbol"],
                 current_interval=prompt_settings["current_interval"],
                 current_indicators=prompt_settings["current_indicators"],
+                current_asset_type=prompt_settings.get("current_asset_type"),
             ))
+
+
+def render_default_questions():
+    """
+    Render default question buttons in an expander.
+    Only shown when chart is loaded, API key present, no messages, and not streaming.
+    """
+    # Display conditions
+    show_questions = (
+        st.session_state.get("chart_data") is not None
+        and st.session_state.get("gemini_api_key")
+        and not st.session_state.get("is_streaming", False)
+        and len(st.session_state.messages) == 0
+    )
+
+    if not show_questions:
+        return
+
+    with st.expander("Quick Start Questions", expanded=True, icon=":material/chat:"):
+        st.caption("Click a question to populate the input field, then modify or send as-is.")
+
+        # Wrapper for custom button styling
+        st.markdown('<div class="default-questions-container">', unsafe_allow_html=True)
+
+        # 2x2 grid layout
+        col1, col2 = st.columns(2)
+
+        # Left column: Questions 1 and 3
+        with col1:
+            if st.button(
+                DEFAULT_QUESTIONS[0],
+                key="default_q1",
+                disabled=st.session_state.get("is_streaming", False),
+                use_container_width=True,
+                type="secondary"
+            ):
+                st.session_state.chat_input_area = DEFAULT_QUESTIONS[0]
+                st.rerun()
+
+            if st.button(
+                DEFAULT_QUESTIONS[2],
+                key="default_q3",
+                disabled=st.session_state.get("is_streaming", False),
+                use_container_width=True,
+                type="secondary"
+            ):
+                st.session_state.chat_input_area = DEFAULT_QUESTIONS[2]
+                st.rerun()
+
+        # Right column: Questions 2 and 4
+        with col2:
+            if st.button(
+                DEFAULT_QUESTIONS[1],
+                key="default_q2",
+                disabled=st.session_state.get("is_streaming", False),
+                use_container_width=True,
+                type="secondary"
+            ):
+                st.session_state.chat_input_area = DEFAULT_QUESTIONS[1]
+                st.rerun()
+
+            if st.button(
+                DEFAULT_QUESTIONS[3],
+                key="default_q4",
+                disabled=st.session_state.get("is_streaming", False),
+                use_container_width=True,
+                type="secondary"
+            ):
+                st.session_state.chat_input_area = DEFAULT_QUESTIONS[3]
+                st.rerun()
+
+        # Close wrapper div
+        st.markdown('</div>', unsafe_allow_html=True)
 
 
 def load_chart_data(settings: dict):
@@ -329,11 +469,12 @@ def load_chart_data(settings: dict):
 
     with st.spinner(f"Loading data for {settings['symbol']}..."):
         try:
-            # Fetch data
+            # Fetch data with asset_type for proper market hours filtering
             df = fetch_cached_data(
                 symbol=settings["symbol"],
                 interval=settings["interval"],
-                outputsize=settings["chart_size"]
+                outputsize=settings["chart_size"],
+                asset_type=settings.get("asset_type")
             )
 
             if df is None or df.empty:
@@ -341,19 +482,25 @@ def load_chart_data(settings: dict):
                 return False
 
             # Calculate levels if needed
-            service = ChartDataService()
             pivot_levels = None
 
             if settings["indicators"].get("pivot"):
-                pivot_levels = service.calculate_pivot_points(df)
+                pivot_levels = fetch_pivot_points(
+                    settings["symbol"],
+                    asset_type=settings.get("asset_type")
+                )
 
-            # Fetch daily change
-            daily_change = fetch_daily_change(settings["symbol"])
+            # Fetch daily change with asset_type for proper filtering
+            daily_change = fetch_daily_change(
+                settings["symbol"],
+                asset_type=settings.get("asset_type")
+            )
 
             # Update session state
             st.session_state.chart_data = df
             st.session_state.current_symbol = settings["symbol"]
             st.session_state.current_interval = settings["interval"]
+            st.session_state.current_asset_type = settings.get("asset_type", "forex")
             st.session_state.pivot_levels = pivot_levels
             st.session_state.daily_change = daily_change
             st.session_state.current_indicators = settings["indicators"]
@@ -372,7 +519,8 @@ def main():
     initialize_session_state()
 
     # Inject custom CSS
-    inject_custom_css()
+    theme_mode = st.session_state.get("theme_mode", "light")
+    inject_custom_css(theme_mode)
 
     # Check if we have an API key stored from previous session or front page
     stored_api_key = st.session_state.get("gemini_api_key", "")

@@ -20,21 +20,24 @@ from src.prompts.technical_analysis import (DOWNLOAD_MARKET_DATA_DESCRIPTION,
                                             WRITE_CODE_DESCRIPTION
                                             )
 
-DATA_DIR = BASE_DIR / "data" / "time_series"
+# Default data directory (used as fallback if no session directory)
+DEFAULT_DATA_DIR = BASE_DIR / "data" / "time_series"
 
 @tool(description=DOWNLOAD_MARKET_DATA_DESCRIPTION, parse_docstring=True)
 def download_market_data(
     ticker: str,
     interval: str,
     runtime: ToolRuntime,
+    data_provider: str = "twelvedata",
     timezone: str = "UTC",
     outputsize: int = 4000,
 ) -> Command | str:
     """Download OHLC market data with pre-calculated technical indicators for a given asset.
 
-    Args:   
-        ticker: Asset ticker symbol (e.g., "EUR/USD", "BTC/USD", "XAU/USD", "GBP/USD")
+    Args:
+        ticker: Asset ticker symbol (e.g., "EUR/USD", "BTC/USD", "XAU/USD", "GBP/USD" for TwelveData; "DX-Y.NYB", "^TNX" for yfinance)
         interval: Time interval for the data (e.g., "1min", "5min", "15min", "30min", "1h", "4h", "1day", "1week")
+        data_provider: Data source - "twelvedata" (default) for forex/crypto/stocks/commodities, "yfinance" for indices/treasury yields
         timezone: Timezone for the data (default: "UTC"). Examples: "America/New_York", "Europe/London"
         outputsize: Number of data points to fetch (default: 4000, max: 5000)
 
@@ -43,22 +46,31 @@ def download_market_data(
     """
 
     try:
+        # Get asset_type from context if available
+        asset_type = runtime.context.asset_type if hasattr(runtime.context, 'asset_type') else None
+
         service = TechnicalIndicatorService(
             symbol=ticker,
             timezone=timezone,
-            interval=interval
+            interval=interval,
+            asset_type=asset_type
         )
 
-        df = service.get_data_from_td(outputsize=outputsize)
+        if data_provider == "yfinance":
+            df = service.get_data_from_yfinance(outputsize=outputsize)
+        else:
+            df = service.get_data_from_td(outputsize=outputsize)
 
         if df is None or df.empty:
             return f"Error: No data returned for {ticker} at {interval} interval."
 
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        # Use session-specific directory if available, otherwise default
+        data_dir = Path(runtime.context.session_data_dir) if runtime.context.session_data_dir else DEFAULT_DATA_DIR
+        data_dir.mkdir(parents=True, exist_ok=True)
 
         ticker_clean = ticker.replace("/", "_")
         filename = f"{ticker_clean}_{interval}.csv"
-        filepath = DATA_DIR / filename
+        filepath = data_dir / filename
 
         df.to_csv(filepath, index=True)
 
@@ -96,7 +108,7 @@ df[df['Date'] >= df['Date'].max() - pd.Timedelta(days=30)]
         )
 
     except Exception as e:
-        return f"Error downloading data for {ticker}: {str(e)}"
+        return f"Error downloading data for {ticker}: {str(e)}. Try fix it if you can."
     
 _code_executor: ThreadPoolExecutor | None = None
 
@@ -192,8 +204,13 @@ def _create_safe_builtins():
     return safe_builtins
 
 
-def _execute_sandboxed_code(code: str) -> str:
-    """Execute Python code in a sandboxed environment."""
+def _execute_sandboxed_code(code: str, data_dir: Path) -> str:
+    """Execute Python code in a sandboxed environment.
+
+    Args:
+        code: Python code to execute
+        data_dir: Directory where data files are stored (session-specific)
+    """
 
     old_stdout = sys.stdout
     old_stderr = sys.stderr
@@ -213,21 +230,21 @@ def _execute_sandboxed_code(code: str) -> str:
         safe_globals['math'] = math
         safe_globals['talib'] = talib
 
-        safe_globals['open'] = _create_safe_open(DATA_DIR)
+        safe_globals['open'] = _create_safe_open(data_dir)
 
         def safe_read_csv(filepath, **kwargs):
-            """Read CSV file from the data/time_series directory.
+            """Read CSV file from the session data directory.
 
             Automatically parses the Date column as datetime and sets it as index.
             """
             resolved = Path(filepath)
             if not resolved.is_absolute():
-                resolved = DATA_DIR / filepath
+                resolved = data_dir / filepath
 
             try:
-                resolved.resolve().relative_to(DATA_DIR.resolve())
+                resolved.resolve().relative_to(data_dir.resolve())
             except ValueError:
-                raise PermissionError(f"Access denied. Only files in {DATA_DIR} can be read.")
+                raise PermissionError(f"Access denied. Only files in {data_dir} can be read.")
 
             # Set smart defaults for market data CSVs
             # Use first column as index (which is numeric), but also parse Date column
@@ -243,7 +260,7 @@ def _execute_sandboxed_code(code: str) -> str:
             return df
 
         safe_globals['read_csv'] = safe_read_csv
-        safe_globals['DATA_DIR'] = str(DATA_DIR)
+        safe_globals['DATA_DIR'] = str(data_dir)
 
         safe_locals = {}
 
@@ -274,9 +291,10 @@ def _execute_sandboxed_code(code: str) -> str:
 @tool(description=WRITE_CODE_DESCRIPTION, parse_docstring=True)
 async def write_code(
     code: str,
+    runtime: ToolRuntime,
 ) -> str:
     """Execute Python code for quantitative analysis in a sandboxed environment.
-    
+
     Args:
         code: Python code string to execute. Use print() to output results.
 
@@ -291,10 +309,13 @@ async def write_code(
         if pattern.lower() in code_lower:
             return f"Error: Blocked pattern detected: '{pattern}'. This operation is not allowed for security reasons."
 
-    # Run code execution in a separate process to avoid blocking the event loop
+    # Use session-specific directory if available, otherwise default
+    data_dir = Path(runtime.context.session_data_dir) if runtime.context.session_data_dir else DEFAULT_DATA_DIR
+
+    # Run code execution in a separate thread to avoid blocking the event loop
     loop = asyncio.get_event_loop()
     executor = _get_executor()
-    result = await loop.run_in_executor(executor, _execute_sandboxed_code, code)
+    result = await loop.run_in_executor(executor, _execute_sandboxed_code, code, data_dir)
 
     max_length = 10000
     if len(result) > max_length:

@@ -4,28 +4,37 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from streamlit_app.utils.styles import CHART_COLORS
+from streamlit_app.utils.styles import CHART_COLORS, CHART_THEME
 
 
-def filter_weekend_data(df: pd.DataFrame, interval: str) -> pd.DataFrame:
-    """Filter out weekend data (Saturday and Sunday) from the DataFrame."""
+def prepare_chart_data(df: pd.DataFrame, interval: str) -> pd.DataFrame:
+    """Normalize chart data for plotting.
+
+    Notes:
+        - This function intentionally does NOT filter out any timestamps.
+        - The x-axis is rendered as categorical (see apply_dark_theme), so
+          missing timestamps won't create visual gaps.
+    """
     if df is None or df.empty:
         return df
 
-    # Ensure Date column is datetime
     df = df.copy()
-    df["Date"] = pd.to_datetime(df["Date"])
 
-    # Filter out Saturday (5) and Sunday (6)
-    mask = df["Date"].dt.dayofweek < 5
-    df = df[mask].reset_index(drop=True)
-
-    # Format date labels based on interval
-    if interval in ["1day", "1week", "1month"]:
-        df["DateLabel"] = df["Date"].dt.strftime("%b %d")
+    # Ensure we have a Date column (some pipelines keep Date in the index)
+    if "Date" not in df.columns:
+        if isinstance(df.index, pd.DatetimeIndex):
+            df["Date"] = df.index
+        else:
+            df["Date"] = pd.to_datetime(df.index, errors="coerce")
     else:
-        # Intraday intervals - show date and time
-        df["DateLabel"] = df["Date"].dt.strftime("%b %d %H:%M")
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+
+    # Create a unique, readable label for categorical x-axis.
+    # Include year to avoid collisions across longer ranges.
+    if interval in ["1day", "1week", "1month"]:
+        df["DateLabel"] = df["Date"].dt.strftime("%Y-%m-%d")
+    else:
+        df["DateLabel"] = df["Date"].dt.strftime("%Y-%m-%d %H:%M")
 
     return df
 
@@ -36,6 +45,7 @@ def create_candlestick_chart(
     interval: str,
     indicators: dict,
     pivot_levels: dict | None = None,
+    theme_mode: str = "light",
 ) -> go.Figure:
     """
     Create an interactive Plotly candlestick chart with technical indicators.
@@ -46,12 +56,13 @@ def create_candlestick_chart(
         interval: Time interval for title
         indicators: Dict of indicator toggles (e.g., {"ema_20": True, "rsi": True})
         pivot_levels: Optional pivot point levels
+        theme_mode: "light" or "dark"
 
     Returns:
         Plotly Figure object
     """
-    # Filter out weekend data and format labels
-    df = filter_weekend_data(df, interval)
+    # Data is already cleaned upstream; just normalize Date/labels for plotting.
+    df = prepare_chart_data(df, interval)
 
     # Determine subplot configuration
     subplot_indicators = []
@@ -125,7 +136,10 @@ def create_candlestick_chart(
             )
 
     # === Bollinger Bands ===
+    ct = CHART_THEME.get(theme_mode, CHART_THEME["light"])
+
     if indicators.get("bb") and "BB_Upper" in df.columns:
+        bb_fill_opacity = ct["bb_fill_opacity"]
         # Upper band
         fig.add_trace(
             go.Scatter(
@@ -145,7 +159,7 @@ def create_candlestick_chart(
                 name="BB Lower",
                 line=dict(color=CHART_COLORS["bb_band"], width=1, dash="dash"),
                 fill="tonexty",
-                fillcolor="rgba(96, 125, 139, 0.1)",
+                fillcolor=f"rgba(96, 125, 139, {bb_fill_opacity})",
                 hovertemplate="BB Lower: %{y:.4f}<extra></extra>",
             ),
             row=1, col=1
@@ -188,11 +202,11 @@ def create_candlestick_chart(
         current_row += 1
 
     # RSI
-    if "RSI" in subplot_indicators and "RSI" in df.columns:
+    if "RSI" in subplot_indicators and "RSI14" in df.columns:
         fig.add_trace(
             go.Scatter(
                 x=df["DateLabel"],
-                y=df["RSI"],
+                y=df["RSI14"],
                 name="RSI(14)",
                 line=dict(color=CHART_COLORS["rsi"], width=1.5),
                 hovertemplate="RSI: %{y:.2f}<extra></extra>",
@@ -202,7 +216,7 @@ def create_candlestick_chart(
         # Overbought/Oversold lines
         fig.add_hline(y=70, line=dict(color=CHART_COLORS["rsi_overbought"], width=1, dash="dash"), row=current_row, col=1)
         fig.add_hline(y=30, line=dict(color=CHART_COLORS["rsi_oversold"], width=1, dash="dash"), row=current_row, col=1)
-        fig.add_hline(y=50, line=dict(color="#404040", width=1, dash="dot"), row=current_row, col=1)
+        fig.add_hline(y=50, line=dict(color=ct["ref_line"], width=1, dash="dot"), row=current_row, col=1)
 
         # Update RSI y-axis range
         fig.update_yaxes(range=[0, 100], row=current_row, col=1)
@@ -235,12 +249,12 @@ def create_candlestick_chart(
         # Histogram
         hist_colors = [
             CHART_COLORS["macd_hist_pos"] if val >= 0 else CHART_COLORS["macd_hist_neg"]
-            for val in df["MACD_Hist"]
+            for val in df["MACD_Diff"]
         ]
         fig.add_trace(
             go.Bar(
                 x=df["DateLabel"],
-                y=df["MACD_Hist"],
+                y=df["MACD_Diff"],
                 name="Histogram",
                 marker_color=hist_colors,
                 hovertemplate="Hist: %{y:.4f}<extra></extra>",
@@ -248,11 +262,12 @@ def create_candlestick_chart(
             row=current_row, col=1
         )
         # Zero line
-        fig.add_hline(y=0, line=dict(color="#404040", width=1), row=current_row, col=1)
+        fig.add_hline(y=0, line=dict(color=ct["ref_line"], width=1), row=current_row, col=1)
         current_row += 1
 
     # ATR
     if "ATR" in subplot_indicators and "ATR" in df.columns:
+        atr_fill_opacity = ct["atr_fill_opacity"]
         fig.add_trace(
             go.Scatter(
                 x=df["DateLabel"],
@@ -260,25 +275,27 @@ def create_candlestick_chart(
                 name="ATR(14)",
                 line=dict(color=CHART_COLORS["atr"], width=1.5),
                 fill="tozeroy",
-                fillcolor="rgba(41, 182, 246, 0.2)",
+                fillcolor=f"rgba(41, 182, 246, {atr_fill_opacity})",
                 hovertemplate="ATR: %{y:.4f}<extra></extra>",
             ),
             row=current_row, col=1
         )
 
-    # === Apply Dark Theme ===
-    fig = apply_dark_theme(fig, num_rows)
+    # === Apply Chart Theme ===
+    fig = apply_chart_theme(fig, num_rows, theme_mode)
 
     return fig
 
 
-def apply_dark_theme(fig: go.Figure, num_rows: int) -> go.Figure:
-    """Apply light theme to the chart."""
+def apply_chart_theme(fig: go.Figure, num_rows: int, theme_mode: str = "light") -> go.Figure:
+    """Apply theme styling to the chart."""
+    ct = CHART_THEME.get(theme_mode, CHART_THEME["light"])
+
     fig.update_layout(
-        template="plotly_white",
-        paper_bgcolor="#ffffff",
-        plot_bgcolor="#ffffff",
-        font=dict(family="Inter, sans-serif", color="#1a1a1a", size=12),
+        template=ct["template"],
+        paper_bgcolor=ct["paper_bg"],
+        plot_bgcolor=ct["plot_bg"],
+        font=dict(family="Inter, sans-serif", color=ct["font_color"], size=12),
         xaxis_rangeslider_visible=False,
         legend=dict(
             orientation="h",
@@ -286,8 +303,8 @@ def apply_dark_theme(fig: go.Figure, num_rows: int) -> go.Figure:
             y=1.02,
             xanchor="right",
             x=1,
-            bgcolor="rgba(255,255,255,0.8)",
-            font=dict(size=10),
+            bgcolor=ct["legend_bg"],
+            font=dict(size=10, color=ct["font_color"]),
         ),
         margin=dict(l=60, r=60, t=80, b=40),
         hovermode="x unified",
@@ -297,22 +314,22 @@ def apply_dark_theme(fig: go.Figure, num_rows: int) -> go.Figure:
     # Update all axes
     for i in range(1, num_rows + 1):
         fig.update_xaxes(
-            gridcolor="#e0e0e0",
+            gridcolor=ct["grid"],
             showgrid=True,
             zeroline=False,
             showline=True,
-            linecolor="#e0e0e0",
-            type="category",  # Use categorical axis to avoid gaps
-            nticks=10,  # Limit number of tick labels
-            tickangle=-45,  # Angle labels for better readability
+            linecolor=ct["grid"],
+            type="category",
+            nticks=10,
+            tickangle=-45,
             row=i, col=1
         )
         fig.update_yaxes(
-            gridcolor="#e0e0e0",
+            gridcolor=ct["grid"],
             showgrid=True,
             zeroline=False,
             showline=True,
-            linecolor="#e0e0e0",
+            linecolor=ct["grid"],
             side="right",
             row=i, col=1
         )
