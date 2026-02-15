@@ -14,7 +14,7 @@ sys.path.insert(0, str(project_root))
 import asyncio
 import streamlit as st
 
-from streamlit_app.utils.styles import inject_custom_css
+from streamlit_app.utils.styles import inject_custom_css, PIVOT_COLORS
 from streamlit_app.components.sidebar import render_sidebar, validate_inputs
 from streamlit_app.components.chart import create_candlestick_chart, get_latest_values
 from streamlit_app.components.chat import (
@@ -68,6 +68,8 @@ def initialize_session_state():
         # Pending prompt (set before rerun to ensure sidebar is disabled)
         "pending_prompt": None,
         "pending_prompt_settings": None,
+        # Theme
+        "theme_mode": "light",
     }
 
     for key, value in defaults.items():
@@ -135,6 +137,7 @@ def render_chart_section(settings: dict):
         return
 
     df = st.session_state.chart_data
+    theme_mode = st.session_state.get("theme_mode", "light")
 
     # Price info row - compact layout
     latest = get_latest_values(df)
@@ -163,6 +166,7 @@ def render_chart_section(settings: dict):
 
         if show_pivot:
             pivot_levels = st.session_state.pivot_levels
+            pc = PIVOT_COLORS.get(theme_mode, PIVOT_COLORS["light"])
             # Single row layout with price info and pivot points inline
             st.markdown(
                 f"""
@@ -173,25 +177,25 @@ def render_chart_section(settings: dict):
                         {change_icon} {abs(change):.4f} ({change_pct:+.2f}%)
                     </span>
                     <span style="color: #9ca3af; margin: 0 0.25rem;">|</span>
-                    <span style="background: #fee2e2; color: #dc2626; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
+                    <span style="background: {pc['R3']['bg']}; color: {pc['R3']['text']}; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
                         R3: {pivot_levels.get('R3', 0):.4f}
                     </span>
-                    <span style="background: #fecaca; color: #dc2626; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
+                    <span style="background: {pc['R2']['bg']}; color: {pc['R2']['text']}; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
                         R2: {pivot_levels.get('R2', 0):.4f}
                     </span>
-                    <span style="background: #fef2f2; color: #dc2626; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
+                    <span style="background: {pc['R1']['bg']}; color: {pc['R1']['text']}; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
                         R1: {pivot_levels.get('R1', 0):.4f}
                     </span>
-                    <span style="background: #f3f4f6; color: #374151; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">
+                    <span style="background: {pc['Pivot']['bg']}; color: {pc['Pivot']['text']}; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">
                         P: {pivot_levels.get('Pivot', 0):.4f}
                     </span>
-                    <span style="background: #f0fdf4; color: #16a34a; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
+                    <span style="background: {pc['S1']['bg']}; color: {pc['S1']['text']}; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
                         S1: {pivot_levels.get('S1', 0):.4f}
                     </span>
-                    <span style="background: #bbf7d0; color: #16a34a; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
+                    <span style="background: {pc['S2']['bg']}; color: {pc['S2']['text']}; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
                         S2: {pivot_levels.get('S2', 0):.4f}
                     </span>
-                    <span style="background: #86efac; color: #16a34a; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
+                    <span style="background: {pc['S3']['bg']}; color: {pc['S3']['text']}; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">
                         S3: {pivot_levels.get('S3', 0):.4f}
                     </span>
                 </div>
@@ -220,6 +224,7 @@ def render_chart_section(settings: dict):
         interval=st.session_state.current_interval,
         indicators=settings["indicators"],
         pivot_levels=st.session_state.pivot_levels,
+        theme_mode=theme_mode,
     )
 
     st.plotly_chart(fig, use_container_width=True, config={
@@ -304,8 +309,11 @@ def render_chat_section(settings: dict):
             st.session_state.clear_chat_input = False
 
         # Icon before text input
+        from streamlit_app.utils.styles import LIGHT_COLORS, DARK_COLORS
+        _tm = st.session_state.get("theme_mode", "light")
+        _colors = DARK_COLORS if _tm == "dark" else LIGHT_COLORS
         st.markdown(
-            '<div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; color: #1a1a1a;">'
+            f'<div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; color: {_colors["text_primary"]};">'
             '<span style="font-size: 1rem;">▶</span>'
             '<span style="font-weight: 500;">Your Message</span>'
             '</div>',
@@ -511,7 +519,8 @@ def main():
     initialize_session_state()
 
     # Inject custom CSS
-    inject_custom_css()
+    theme_mode = st.session_state.get("theme_mode", "light")
+    inject_custom_css(theme_mode)
 
     # Check if we have an API key stored from previous session or front page
     stored_api_key = st.session_state.get("gemini_api_key", "")

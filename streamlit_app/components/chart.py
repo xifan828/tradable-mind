@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from streamlit_app.utils.styles import CHART_COLORS
+from streamlit_app.utils.styles import CHART_COLORS, CHART_THEME
 
 
 def prepare_chart_data(df: pd.DataFrame, interval: str) -> pd.DataFrame:
@@ -45,6 +45,7 @@ def create_candlestick_chart(
     interval: str,
     indicators: dict,
     pivot_levels: dict | None = None,
+    theme_mode: str = "light",
 ) -> go.Figure:
     """
     Create an interactive Plotly candlestick chart with technical indicators.
@@ -55,6 +56,7 @@ def create_candlestick_chart(
         interval: Time interval for title
         indicators: Dict of indicator toggles (e.g., {"ema_20": True, "rsi": True})
         pivot_levels: Optional pivot point levels
+        theme_mode: "light" or "dark"
 
     Returns:
         Plotly Figure object
@@ -134,7 +136,10 @@ def create_candlestick_chart(
             )
 
     # === Bollinger Bands ===
+    ct = CHART_THEME.get(theme_mode, CHART_THEME["light"])
+
     if indicators.get("bb") and "BB_Upper" in df.columns:
+        bb_fill_opacity = ct["bb_fill_opacity"]
         # Upper band
         fig.add_trace(
             go.Scatter(
@@ -154,7 +159,7 @@ def create_candlestick_chart(
                 name="BB Lower",
                 line=dict(color=CHART_COLORS["bb_band"], width=1, dash="dash"),
                 fill="tonexty",
-                fillcolor="rgba(96, 125, 139, 0.1)",
+                fillcolor=f"rgba(96, 125, 139, {bb_fill_opacity})",
                 hovertemplate="BB Lower: %{y:.4f}<extra></extra>",
             ),
             row=1, col=1
@@ -211,7 +216,7 @@ def create_candlestick_chart(
         # Overbought/Oversold lines
         fig.add_hline(y=70, line=dict(color=CHART_COLORS["rsi_overbought"], width=1, dash="dash"), row=current_row, col=1)
         fig.add_hline(y=30, line=dict(color=CHART_COLORS["rsi_oversold"], width=1, dash="dash"), row=current_row, col=1)
-        fig.add_hline(y=50, line=dict(color="#404040", width=1, dash="dot"), row=current_row, col=1)
+        fig.add_hline(y=50, line=dict(color=ct["ref_line"], width=1, dash="dot"), row=current_row, col=1)
 
         # Update RSI y-axis range
         fig.update_yaxes(range=[0, 100], row=current_row, col=1)
@@ -257,11 +262,12 @@ def create_candlestick_chart(
             row=current_row, col=1
         )
         # Zero line
-        fig.add_hline(y=0, line=dict(color="#404040", width=1), row=current_row, col=1)
+        fig.add_hline(y=0, line=dict(color=ct["ref_line"], width=1), row=current_row, col=1)
         current_row += 1
 
     # ATR
     if "ATR" in subplot_indicators and "ATR" in df.columns:
+        atr_fill_opacity = ct["atr_fill_opacity"]
         fig.add_trace(
             go.Scatter(
                 x=df["DateLabel"],
@@ -269,25 +275,27 @@ def create_candlestick_chart(
                 name="ATR(14)",
                 line=dict(color=CHART_COLORS["atr"], width=1.5),
                 fill="tozeroy",
-                fillcolor="rgba(41, 182, 246, 0.2)",
+                fillcolor=f"rgba(41, 182, 246, {atr_fill_opacity})",
                 hovertemplate="ATR: %{y:.4f}<extra></extra>",
             ),
             row=current_row, col=1
         )
 
-    # === Apply Dark Theme ===
-    fig = apply_dark_theme(fig, num_rows)
+    # === Apply Chart Theme ===
+    fig = apply_chart_theme(fig, num_rows, theme_mode)
 
     return fig
 
 
-def apply_dark_theme(fig: go.Figure, num_rows: int) -> go.Figure:
-    """Apply light theme to the chart."""
+def apply_chart_theme(fig: go.Figure, num_rows: int, theme_mode: str = "light") -> go.Figure:
+    """Apply theme styling to the chart."""
+    ct = CHART_THEME.get(theme_mode, CHART_THEME["light"])
+
     fig.update_layout(
-        template="plotly_white",
-        paper_bgcolor="#ffffff",
-        plot_bgcolor="#ffffff",
-        font=dict(family="Inter, sans-serif", color="#1a1a1a", size=12),
+        template=ct["template"],
+        paper_bgcolor=ct["paper_bg"],
+        plot_bgcolor=ct["plot_bg"],
+        font=dict(family="Inter, sans-serif", color=ct["font_color"], size=12),
         xaxis_rangeslider_visible=False,
         legend=dict(
             orientation="h",
@@ -295,8 +303,8 @@ def apply_dark_theme(fig: go.Figure, num_rows: int) -> go.Figure:
             y=1.02,
             xanchor="right",
             x=1,
-            bgcolor="rgba(255,255,255,0.8)",
-            font=dict(size=10),
+            bgcolor=ct["legend_bg"],
+            font=dict(size=10, color=ct["font_color"]),
         ),
         margin=dict(l=60, r=60, t=80, b=40),
         hovermode="x unified",
@@ -306,22 +314,22 @@ def apply_dark_theme(fig: go.Figure, num_rows: int) -> go.Figure:
     # Update all axes
     for i in range(1, num_rows + 1):
         fig.update_xaxes(
-            gridcolor="#e0e0e0",
+            gridcolor=ct["grid"],
             showgrid=True,
             zeroline=False,
             showline=True,
-            linecolor="#e0e0e0",
-            type="category",  # Use categorical axis to avoid gaps
-            nticks=10,  # Limit number of tick labels
-            tickangle=-45,  # Angle labels for better readability
+            linecolor=ct["grid"],
+            type="category",
+            nticks=10,
+            tickangle=-45,
             row=i, col=1
         )
         fig.update_yaxes(
-            gridcolor="#e0e0e0",
+            gridcolor=ct["grid"],
             showgrid=True,
             zeroline=False,
             showline=True,
-            linecolor="#e0e0e0",
+            linecolor=ct["grid"],
             side="right",
             row=i, col=1
         )

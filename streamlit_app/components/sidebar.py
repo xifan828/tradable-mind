@@ -30,13 +30,20 @@ def render_sidebar() -> dict:
             """
             <div style="text-align: center; padding: 1rem 0;">
                 <div style="font-size: 1.5rem; font-weight: 700; background: linear-gradient(135deg, #1976d2 0%, #7c4dff 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.02em;">Tradable Mind</div>
-                <p style="color: #666666; font-size: 0.875rem; margin-top: 0.25rem;">
+                <p class="sidebar-tagline">
                     AI-Powered Market Analysis
                 </p>
             </div>
             """,
             unsafe_allow_html=True
         )
+
+        # Theme toggle
+        is_dark = st.session_state.get("theme_mode", "light") == "dark"
+        toggle_label = "\u2600\ufe0f Light" if is_dark else "\U0001f319 Dark"
+        if st.button(toggle_label, key="theme_toggle", use_container_width=True, type="secondary"):
+            st.session_state.theme_mode = "light" if is_dark else "dark"
+            st.rerun()
 
         # Show warning when agent is working
         if _is_streaming():
