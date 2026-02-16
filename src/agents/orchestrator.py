@@ -1,13 +1,17 @@
+from pathlib import Path
+
 from langchain.agents import create_agent
 from langchain.agents.middleware import dynamic_prompt, ModelRequest
 from langgraph.checkpoint.memory import InMemorySaver
 
 from src.states_and_contexts.technical_analysis import OrchestratorState, OrchestratorContext
-from src.prompts.technical_analysis import ORCHESTRATOR_SYSTEM_PROMPT
 from src.tools.todo_tools import write_todos, read_todos
 from src.tools.think_tool import think_tool
 from src.tools.task_tool import task
 from src.agents.quant_agent import dynamic_model_from_context
+
+ORCHESTRATOR_PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "orchestrator.md"
+ORCHESTRATOR_SYSTEM_PROMPT = ORCHESTRATOR_PROMPT_PATH.read_text(encoding="utf-8")
 
 @dynamic_prompt
 def orchestrator_system_prompt_from_context(request: ModelRequest) -> str:
