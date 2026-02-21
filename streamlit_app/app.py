@@ -82,44 +82,56 @@ def initialize_session_state():
 
 def render_front_page():
     """Render the front page when API key is not provided."""
-    # Full centered layout
-    st.markdown(
-        """
-        <div class="front-page">
-            <div class="front-page-logo">Tradable Mind</div>
-            <p class="front-page-headline">AI Agent that helps you reason about the market.</p>
-            <p class="front-page-tagline">
-                Stop following indicators. <span class="tagline-highlight">Start following reasoning.</span>
-            </p>
-            <div class="front-page-cta">
-                <p class="cta-text">To begin, enter your Gemini API key</p>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    _, col_center, _ = st.columns([1, 2, 1])
 
-    # Very narrow center column for input
-    col1, col2, col3 = st.columns([1.5, 1, 1.5])
-    with col2:
-        api_key = st.text_input(
-            "Gemini API Key",
-            type="password",
-            placeholder="Paste API key here",
-            key="front_page_api_key",
-            label_visibility="collapsed"
+    with col_center:
+        st.markdown(
+            """
+            <div class="front-page">
+                <div class="front-page-logo">Tradable Mind</div>
+                <p class="front-page-headline">AI Agent that helps you reason about the market.</p>
+                <p class="front-page-tagline">
+                    Stop following indicators.
+                    <span class="tagline-highlight">Start following reasoning.</span>
+                </p>
+                <ul class="front-page-features">
+                    <li>Multi-agent analysis with Chart &amp; Quant agents</li>
+                    <li>Visual &amp; quantitative pattern recognition</li>
+                    <li>Full reasoning chains, not black-box signals</li>
+                </ul>
+                <p class="cta-text">Enter your Gemini API key to get started</p>
+            </div>
+            """,
+            unsafe_allow_html=True
         )
 
-    st.markdown(
-        """
-        <div class="front-page-link">
-            <a href="https://aistudio.google.com/app/apikey" target="_blank">
-                Get your free API key from Google AI Studio →
-            </a>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+        _, input_col, _ = st.columns([1, 4, 1])
+        with input_col:
+            api_key = st.text_input(
+                "Gemini API Key",
+                type="password",
+                placeholder="Paste API key here",
+                key="front_page_api_key",
+                label_visibility="collapsed"
+            )
+
+        st.markdown(
+            """
+            <div class="front-page-link">
+                <a href="https://aistudio.google.com/app/apikey" target="_blank">
+                    Get your free API key from Google AI Studio →
+                </a>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        st.markdown(
+            '<div class="video-card-label">See it in action</div>',
+            unsafe_allow_html=True
+        )
+        video_path = Path(__file__).parent / "utils" / "vedio.mp4"
+        st.video(str(video_path), autoplay=True, loop=True, muted=True)
 
     return api_key
 

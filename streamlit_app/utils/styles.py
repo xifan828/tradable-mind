@@ -605,31 +605,58 @@ def _build_css(colors: dict) -> str:
     /* Front Page Styles */
     .front-page {{
         text-align: center;
-        padding: 4rem 2rem 1rem 2rem;
+        padding: 3rem 0 1.5rem 0;
+    }}
+
+    .front-page-features {{
+        list-style: none;
+        padding: 0;
+        margin: 0 0 2rem 0;
+        display: inline-block;
+        text-align: left;
+    }}
+
+    .front-page-features li {{
+        color: {colors["text_muted"]};
+        font-size: 0.9rem;
+        padding: 0.3rem 0;
+        padding-left: 1.25rem;
+        position: relative;
+    }}
+
+    .front-page-features li::before {{
+        content: "✦";
+        position: absolute;
+        left: 0;
+        color: {colors["primary"]};
+        font-size: 0.6rem;
+        top: 0.45rem;
     }}
 
     .front-page-logo {{
-        font-size: 2.75rem;
+        font-size: 3rem;
         font-weight: 700;
         background: linear-gradient(135deg, #1976d2 0%, #7c4dff 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
-        margin-bottom: 1rem;
+        margin-bottom: 1.25rem;
         letter-spacing: -0.02em;
+        line-height: 1.1;
     }}
 
     .front-page-headline {{
-        font-size: 1.25rem;
+        font-size: 1.4rem;
         font-weight: 600;
         color: {colors["text_primary"]};
         margin-bottom: 0.5rem;
+        line-height: 1.4;
     }}
 
     .front-page-tagline {{
-        font-size: 1rem;
+        font-size: 1.05rem;
         color: {colors["text_muted"]};
-        margin-bottom: 2rem;
+        margin-bottom: 1.75rem;
     }}
 
     .tagline-highlight {{
@@ -637,19 +664,16 @@ def _build_css(colors: dict) -> str:
         font-weight: 600;
     }}
 
-    .front-page-cta {{
-        margin-bottom: 0.5rem;
-    }}
-
     .cta-text {{
         color: {colors["cta_text"]};
         font-size: 0.9rem;
-        margin: 0;
+        margin: 0 0 0.5rem 0;
     }}
 
     .front-page-link {{
         text-align: center;
         margin-top: 1rem;
+        margin-bottom: 1.5rem;
     }}
 
     .front-page-link a {{
@@ -660,6 +684,25 @@ def _build_css(colors: dict) -> str:
 
     .front-page-link a:hover {{
         text-decoration: underline;
+    }}
+
+    /* Video card */
+    .video-card-label {{
+        text-align: center;
+        color: {colors["text_muted"]};
+        font-size: 0.8rem;
+        font-weight: 500;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        margin-bottom: 0.5rem;
+        padding-top: 1rem;
+    }}
+
+    [data-testid="stVideo"] {{
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 8px 32px rgba(25, 118, 210, 0.12);
+        border: 1px solid {colors["border"]};
     }}
 
     /* Sidebar tagline */

@@ -30,12 +30,25 @@ uv sync
 
 ## Configuration
 
-Create a `.env` file in the project root:
+Copy the example environment file and fill in your API keys:
 
-```env
-TD_API_KEY=your_twelvedata_api_key
-GEMINI_API_KEY=your_gemini_api_key
+```bash
+cp .env.example .env
 ```
+
+Required keys:
+
+| Variable | Description |
+|---|---|
+| `TD_API_KEY` | [TwelveData](https://twelvedata.com/) API key for market data |
+| `GEMINI_API_KEY` | [Google Gemini](https://ai.google.dev/) API key |
+
+Optional:
+
+| Variable | Description |
+|---|---|
+| `LANGSMITH_API_KEY` | [LangSmith](https://smith.langchain.com/) API key for tracing |
+| `LANGSMITH_TRACING` | Set to `"true"` to enable LangSmith tracing |
 
 ## Usage
 

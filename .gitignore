@@ -19,3 +19,9 @@ data/
 
 # IDE
 .vscode/
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Media files
+*.mp4
