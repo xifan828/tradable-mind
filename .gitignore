@@ -22,6 +22,3 @@ data/
 
 # Claude Code local settings
 .claude/settings.local.json
-
-# Media files
-*.mp4
