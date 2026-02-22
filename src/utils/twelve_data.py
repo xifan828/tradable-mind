@@ -196,10 +196,14 @@ class TwelveData:
                 "high": "High",
                 "low": "Low",
                 "close": "Close",
+                "volume": "Volume",
             })
 
-            # Keep only OHLC columns (drop volume if present)
-            df = df[['Date', 'Open', 'High', 'Low', 'Close']]
+            # Keep OHLC columns, plus Volume if available
+            cols = ['Date', 'Open', 'High', 'Low', 'Close']
+            if 'Volume' in df.columns:
+                cols.append('Volume')
+            df = df[cols]
 
             # Filter non-trading hours first
             df = self._filter_non_trading_hours(df)

@@ -1,7 +1,7 @@
 """Chat interface component with streaming display and task iteration grouping."""
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 import streamlit as st
 from typing import Any
 from collections import defaultdict
@@ -463,7 +463,7 @@ async def process_user_input(
         st.session_state.pending_tasks = {}
 
         indicators_str = format_indicators_for_context(current_indicators or {})
-        current_time = datetime.now().strftime("%Y-%m-%d, %H:%M, %A")
+        current_time = datetime.now(timezone.utc).strftime("%Y-%m-%d, %H:%M, %A UTC")
 
         enhanced_query = f"""<context>
 - Symbol being analyzed: {current_symbol}. Use THIS symbol when delegating tasks to subagents.

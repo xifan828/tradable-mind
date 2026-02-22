@@ -81,57 +81,133 @@ def initialize_session_state():
 
 
 def render_front_page():
-    """Render the front page when API key is not provided."""
-    _, col_center, _ = st.columns([1, 2, 1])
+    """Render the redesigned front page."""
+    st.markdown("""
+    <style>
+        .block-container {
+            max-width: 960px !important;
+            padding-left: 2rem !important;
+            padding-right: 2rem !important;
+            margin: 0 auto !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
 
-    with col_center:
-        st.markdown(
-            """
-            <div class="front-page">
-                <div class="front-page-logo">Tradable Mind</div>
-                <p class="front-page-headline">AI Agent that helps you reason about the market.</p>
-                <p class="front-page-tagline">
-                    Stop following indicators.
-                    <span class="tagline-highlight">Start following reasoning.</span>
-                </p>
-                <ul class="front-page-features">
-                    <li>Multi-agent analysis with Chart &amp; Quant agents</li>
-                    <li>Visual &amp; quantitative pattern recognition</li>
-                    <li>Full reasoning chains, not black-box signals</li>
-                </ul>
-                <p class="cta-text">Enter your Gemini API key to get started</p>
+    col_left, col_right = st.columns([11, 9], gap="large")
+
+    with col_left:
+        st.markdown("""
+        <div class="lp-hero-left">
+            <div class="lp-badge">
+                <span class="lp-badge-dot"></span>
+                Powered by Google Gemini 3.0
             </div>
-            """,
-            unsafe_allow_html=True
-        )
+            <h1 class="lp-title">Tradable Mind: Your AI Thinking Partner<br><span class="lp-title-accent" style="font-size:0.75em;">for Real-Time Market Analysis</span></h1>
+            <p class="lp-desc">
+                Multi-agent analysis with specialized Chart &amp; Quant agents.
+                Move beyond black-box signals with institutional-grade reasoning chains
+                and visual pattern recognition.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
-        _, input_col, _ = st.columns([1, 4, 1])
-        with input_col:
+        col_input, col_btn = st.columns([3, 1])
+        with col_input:
             api_key = st.text_input(
-                "Gemini API Key",
+                "API Key",
                 type="password",
-                placeholder="Paste API key here",
+                placeholder="Enter your Gemini API Key",
                 key="front_page_api_key",
-                label_visibility="collapsed"
+                label_visibility="collapsed",
             )
+        with col_btn:
+            st.button("Get Started", type="primary", use_container_width=True)
 
-        st.markdown(
-            """
-            <div class="front-page-link">
-                <a href="https://aistudio.google.com/app/apikey" target="_blank">
-                    Get your free API key from Google AI Studio →
-                </a>
+        st.markdown("""
+        <div class="lp-api-link">
+            <a href="https://aistudio.google.com/app/apikey" target="_blank">
+                &#8599; Get your Gemini API key from Google AI Studio
+            </a>
+            <span class="lp-api-note">&#9888; Requires a paid tier — free API keys will not work.</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col_right:
+        st.markdown("""
+        <div class="lp-mockup-wrapper">
+            <div class="lp-mockup-glow"></div>
+            <div class="lp-mockup-chrome-only">
+                <div class="lp-mockup-dots">
+                    <div class="lp-mockup-dot" style="background:#f87171"></div>
+                    <div class="lp-mockup-dot" style="background:#fbbf24"></div>
+                    <div class="lp-mockup-dot" style="background:#4ade80"></div>
+                </div>
+                <div class="lp-mockup-title">Tradable Mind — Live Demo</div>
+                <div style="width:16px"></div>
             </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-        st.markdown(
-            '<div class="video-card-label">See it in action</div>',
-            unsafe_allow_html=True
-        )
+        </div>
+        """, unsafe_allow_html=True)
         video_path = Path(__file__).parent / "utils" / "vedio.mp4"
-        st.video(str(video_path), autoplay=True, loop=True, muted=True)
+        st.video(str(video_path), loop=True, muted=True, autoplay=True)
+
+    # Features section
+    st.markdown("""
+    <div class="lp-features-section">
+        <h2 class="lp-features-heading" style="text-align:center;max-width:100%;">Think deeper, trade smarter with collaborative AI agents.</h2>
+        <div class="lp-cards-grid">
+            <div class="lp-card">
+                <div class="lp-card-icon">
+                    <span class="material-symbols-outlined">hub</span>
+                </div>
+                <div class="lp-card-title">Multi-agent Analysis</div>
+                <p class="lp-card-desc">Seamless orchestration between specialized Vision agents (pattern recognition) and Math agents (quant data).</p>
+            </div>
+            <div class="lp-card">
+                <div class="lp-card-icon">
+                    <span class="material-symbols-outlined">visibility</span>
+                </div>
+                <div class="lp-card-title">Pattern Recognition</div>
+                <p class="lp-card-desc">Our AI identifies visual candlestick structures like Head &amp; Shoulders or flags while simultaneously computing RSI divergence.</p>
+            </div>
+            <div class="lp-card">
+                <div class="lp-card-icon">
+                    <span class="material-symbols-outlined">account_tree</span>
+                </div>
+                <div class="lp-card-title">Full Reasoning Chains</div>
+                <p class="lp-card-desc">No black boxes. See the full logical deduction path for every trade signal, citing specific data points and patterns.</p>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Footer
+    st.markdown("""
+    <div class="lp-footer">
+        <div class="lp-footer-logo">
+            <div class="lp-footer-logo-icon">
+                <span class="material-symbols-outlined" style="font-size:1rem">neurology</span>
+            </div>
+            <span class="lp-footer-logo-text">Tradable Mind</span>
+        </div>
+        <div class="lp-footer-disclosure">
+            <div class="lp-footer-disclosure-title">Transparency &amp; Risk Disclosure</div>
+            <div class="lp-footer-disclosure-items">
+                <div class="lp-footer-disclosure-item">
+                    <span class="lp-footer-disclosure-label">Data Variance:</span>
+                    Market data may vary slightly across different providers. If you notice any inconsistencies, we actively review and adjust.
+                </div>
+                <div class="lp-footer-disclosure-item">
+                    <span class="lp-footer-disclosure-label">AI Analysis:</span>
+                    Insights are generated by a multi-agent reasoning engine. While designed for logic and structure, AI outputs may contain errors or hallucinate market context.
+                </div>
+                <div class="lp-footer-disclosure-item">
+                    <span class="lp-footer-disclosure-label">Not Financial Advice:</span>
+                    Tradable Mind is a research and reasoning tool. It does not provide financial advice or trade execution. Never invest based solely on AI-generated analysis.
+                </div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     return api_key
 

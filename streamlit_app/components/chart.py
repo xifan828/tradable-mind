@@ -338,6 +338,21 @@ def apply_chart_theme(fig: go.Figure, num_rows: int, theme_mode: str = "light") 
     for i in range(1, num_rows):
         fig.update_xaxes(showticklabels=False, row=i, col=1)
 
+    # Timezone label
+    fig.add_annotation(
+        text="🕐 UTC+0",
+        xref="paper", yref="paper",
+        x=1, y=-0.06,
+        xanchor="right", yanchor="top",
+        showarrow=False,
+        font=dict(size=12, color=ct["font_color"]),
+        bgcolor=ct["legend_bg"],
+        bordercolor=ct["grid"],
+        borderwidth=1,
+        borderpad=4,
+        opacity=0.9,
+    )
+
     return fig
 
 

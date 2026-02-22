@@ -179,6 +179,7 @@ def _build_css(colors: dict) -> str:
 <style>
     /* Import Google Fonts */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');
 
     /* Global styles */
     .stApp {{
@@ -602,107 +603,224 @@ def _build_css(colors: dict) -> str:
         color: {colors["text_primary"]};
     }}
 
-    /* Front Page Styles */
-    .front-page {{
-        text-align: center;
-        padding: 3rem 0 1.5rem 0;
-    }}
+    /* --- New Landing Page --- */
 
-    .front-page-features {{
-        list-style: none;
-        padding: 0;
-        margin: 0 0 2rem 0;
-        display: inline-block;
-        text-align: left;
-    }}
+    /* Hero left column */
+    .lp-hero-left {{ padding: 3rem 0 2rem 0; }}
 
-    .front-page-features li {{
-        color: {colors["text_muted"]};
-        font-size: 0.9rem;
-        padding: 0.3rem 0;
-        padding-left: 1.25rem;
-        position: relative;
-    }}
-
-    .front-page-features li::before {{
-        content: "✦";
-        position: absolute;
-        left: 0;
-        color: {colors["primary"]};
-        font-size: 0.6rem;
-        top: 0.45rem;
-    }}
-
-    .front-page-logo {{
-        font-size: 3rem;
-        font-weight: 700;
-        background: linear-gradient(135deg, #1976d2 0%, #7c4dff 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-bottom: 1.25rem;
-        letter-spacing: -0.02em;
-        line-height: 1.1;
-    }}
-
-    .front-page-headline {{
-        font-size: 1.4rem;
-        font-weight: 600;
-        color: {colors["text_primary"]};
-        margin-bottom: 0.5rem;
-        line-height: 1.4;
-    }}
-
-    .front-page-tagline {{
-        font-size: 1.05rem;
-        color: {colors["text_muted"]};
-        margin-bottom: 1.75rem;
-    }}
-
-    .tagline-highlight {{
-        color: {colors["primary"]};
-        font-weight: 600;
-    }}
-
-    .cta-text {{
-        color: {colors["cta_text"]};
-        font-size: 0.9rem;
-        margin: 0 0 0.5rem 0;
-    }}
-
-    .front-page-link {{
-        text-align: center;
-        margin-top: 1rem;
+    /* Badge pill */
+    .lp-badge {{
+        display: inline-flex; align-items: center; gap: 0.5rem;
+        padding: 0.25rem 0.75rem; border-radius: 9999px;
+        background: rgba(25,118,210,0.1); border: 1px solid rgba(25,118,210,0.2);
+        color: #1152d4; font-size: 0.75rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.05em;
         margin-bottom: 1.5rem;
     }}
-
-    .front-page-link a {{
-        color: {colors["primary"]};
-        font-size: 0.85rem;
-        text-decoration: none;
+    .lp-badge-dot {{
+        width: 8px; height: 8px; border-radius: 50%; background: #1152d4;
+        box-shadow: 0 0 0 3px rgba(17,82,212,0.25);
+        animation: lp-ping 1.5s ease-in-out infinite;
+    }}
+    @keyframes lp-ping {{
+        0%, 100% {{ box-shadow: 0 0 0 3px rgba(17,82,212,0.25); }}
+        50%       {{ box-shadow: 0 0 0 6px rgba(17,82,212,0.0); }}
     }}
 
-    .front-page-link a:hover {{
-        text-decoration: underline;
+    /* Hero title */
+    .lp-title {{
+        font-size: clamp(2.2rem, 4vw, 3.8rem);
+        font-weight: 900; line-height: 1.1; letter-spacing: -0.02em;
+        color: {colors["text_primary"]}; margin-bottom: 1.25rem;
+    }}
+    .lp-title-accent {{ color: #1152d4; font-style: italic; }}
+    .lp-subtitle {{ font-size: clamp(1.4rem, 2.5vw, 2.4rem); font-weight: 700; color: #1152d4; font-style: italic; line-height: 1.2; margin-top: 0 !important; margin-bottom: 1.25rem; }}
+
+    /* Hero description */
+    .lp-desc {{
+        font-size: 1.05rem; color: {colors["text_muted"]};
+        line-height: 1.7; margin-bottom: 1.75rem;
     }}
 
-    /* Video card */
-    .video-card-label {{
-        text-align: center;
-        color: {colors["text_muted"]};
-        font-size: 0.8rem;
-        font-weight: 500;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
+    /* API key link */
+    .lp-api-link {{ margin-top: 0.75rem; }}
+    .lp-api-link a {{
+        color: #1152d4; font-size: 0.85rem; font-weight: 500; text-decoration: none;
+    }}
+    .lp-api-link a:hover {{ text-decoration: underline; }}
+    .lp-api-note {{
+        display: block; margin-top: 0.35rem; font-size: 0.8rem;
+        color: #b45309; font-weight: 500;
+    }}
+
+    /* Right column: browser mockup */
+    .lp-mockup-wrapper {{
+        position: relative; padding: 3rem 0 2rem 1rem;
+    }}
+    .lp-mockup-glow {{
+        position: absolute; inset: -4px; border-radius: 18px;
+        background: linear-gradient(135deg, rgba(17,82,212,0.25), rgba(37,99,235,0.25));
+        filter: blur(8px); opacity: 0.4;
+    }}
+    .lp-mockup {{
+        position: relative; background: #ffffff; border: 1px solid #e2e8f0;
+        border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+        overflow: hidden; aspect-ratio: 16/10;
+    }}
+    .lp-mockup-chrome {{
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0.6rem 1rem;
+        background: #f8fafc; border-bottom: 1px solid #e2e8f0;
+    }}
+    .lp-mockup-chrome-only {{
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0.6rem 1rem;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-bottom: none;
+        border-radius: 16px 16px 0 0;
+    }}
+    .lp-mockup-dots {{ display: flex; gap: 5px; }}
+    .lp-mockup-dot {{ width: 10px; height: 10px; border-radius: 50%; }}
+    .lp-mockup-title {{
+        font-size: 0.6rem; letter-spacing: 0.15em; color: #94a3b8;
+        text-transform: uppercase; font-family: monospace;
+    }}
+    .lp-mockup-body {{ display: flex; height: calc(100% - 36px); }}
+    .lp-mockup-sidebar {{
+        width: 48px; background: #f8fafc; border-right: 1px solid #e2e8f0;
+        display: flex; flex-direction: column; align-items: center;
+        padding: 0.75rem 0; gap: 1rem;
+    }}
+    .lp-mockup-icon {{
+        width: 28px; height: 28px; border-radius: 6px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.9rem;
+    }}
+    .lp-mockup-icon.active {{ background: rgba(17,82,212,0.1); color: #1152d4; }}
+    .lp-mockup-icon.inactive {{ color: #94a3b8; }}
+    .lp-mockup-content {{
+        flex: 1; position: relative; overflow: hidden;
+        background: #0f172a;
+    }}
+    .lp-mockup-chart-bg {{
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        object-fit: cover; opacity: 0.35;
+    }}
+    .lp-mockup-overlay {{
+        position: absolute; inset: 0; display: flex; flex-direction: column;
+        justify-content: center; padding: 1rem; gap: 0.75rem;
+    }}
+    .lp-mockup-card {{
+        background: rgba(255,255,255,0.92); border-radius: 10px;
+        border: 1px solid rgba(17,82,212,0.2); padding: 0.75rem;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.2); max-width: 75%;
+    }}
+    .lp-mockup-card-header {{
+        display: flex; align-items: center; gap: 0.4rem;
         margin-bottom: 0.5rem;
-        padding-top: 1rem;
+        font-size: 0.6rem; font-weight: 700; text-transform: uppercase; color: #1e293b;
+    }}
+    .lp-mockup-card-dot {{ color: #1152d4; font-size: 0.7rem; }}
+    .lp-mockup-bar {{
+        height: 5px; border-radius: 3px; margin-bottom: 4px;
+    }}
+    .lp-mockup-confidence {{
+        background: #1152d4; color: white; border-radius: 8px;
+        padding: 0.5rem 0.75rem; font-size: 0.6rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.1em;
+        text-align: center; align-self: flex-end; max-width: 100px;
     }}
 
-    [data-testid="stVideo"] {{
-        border-radius: 12px;
+    /* Features section */
+    .lp-features-section {{
+        padding: 4rem 1rem; background: transparent;
+    }}
+    .lp-features-eyebrow {{
+        color: #1152d4; font-size: 0.75rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem;
+    }}
+    .lp-features-heading {{
+        font-size: clamp(1.75rem, 3vw, 2.75rem); font-weight: 900;
+        color: {colors["text_primary"]}; letter-spacing: -0.02em; line-height: 1.15;
+        margin-bottom: 0.75rem; max-width: 600px;
+    }}
+    .lp-features-desc {{
+        font-size: 1rem; color: {colors["text_muted"]}; line-height: 1.7;
+        max-width: 600px; margin-bottom: 2.5rem;
+    }}
+    .lp-cards-grid {{
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;
+    }}
+    .lp-card {{
+        background: {colors["card_bg"]}; border: 1px solid {colors["border"]}; border-radius: 16px;
+        padding: 2rem 1.75rem; transition: border-color 0.2s, box-shadow 0.2s;
+    }}
+    .lp-card:hover {{
+        border-color: rgba(17,82,212,0.3);
+        box-shadow: 0 12px 40px rgba(17,82,212,0.06);
+    }}
+    .lp-card-icon {{
+        width: 48px; height: 48px; border-radius: 12px;
+        background: rgba(17,82,212,0.1); color: #1152d4;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.5rem; margin-bottom: 1.25rem;
+    }}
+    .material-symbols-outlined {{ font-size: 1.5rem !important; }}
+    .lp-card-title {{
+        font-size: 1.05rem; font-weight: 700; color: {colors["text_primary"]}; margin-bottom: 0.5rem;
+    }}
+    .lp-card-desc {{ font-size: 0.9rem; color: {colors["text_muted"]}; line-height: 1.65; }}
+
+    /* Video inside mockup frame */
+    .lp-mockup-wrapper + div [data-testid="stVideo"],
+    .lp-mockup-wrapper ~ div [data-testid="stVideo"] {{
+        border-radius: 0 0 16px 16px !important;
         overflow: hidden;
-        box-shadow: 0 8px 32px rgba(25, 118, 210, 0.12);
-        border: 1px solid {colors["border"]};
+        border: 1px solid #e2e8f0;
+        border-top: none;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+        margin-top: 0 !important;
+    }}
+    .lp-mockup-wrapper ~ div [data-testid="stVideo"] video {{
+        display: block;
+    }}
+
+    /* Footer */
+    .lp-footer {{
+        border-top: 1px solid {colors["border"]}; padding: 2.5rem 1rem 1.5rem;
+        text-align: center;
+    }}
+    .lp-footer-logo {{
+        display: flex; align-items: center; justify-content: center;
+        gap: 0.5rem; margin-bottom: 1rem;
+    }}
+    .lp-footer-logo-icon {{
+        background: #1152d4; color: white; border-radius: 8px;
+        width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+        font-size: 1rem;
+    }}
+    .lp-footer-logo-text {{ font-weight: 700; color: {colors["text_primary"]}; }}
+    .lp-footer-copy {{
+        font-size: 0.75rem; color: {colors["text_muted"]}; font-weight: 500;
+        text-transform: uppercase; letter-spacing: 0.08em;
+    }}
+    .lp-footer-disclosure {{
+        margin-top: 1.5rem; text-align: left;
+        border-top: 1px solid {colors["border"]}; padding-top: 1.5rem;
+    }}
+    .lp-footer-disclosure-title {{
+        font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.1em; color: {colors["text_muted"]}; margin-bottom: 0.75rem;
+    }}
+    .lp-footer-disclosure-items {{
+        display: flex; flex-direction: column; gap: 0.4rem;
+    }}
+    .lp-footer-disclosure-item {{
+        font-size: 0.75rem; color: {colors["text_muted"]}; line-height: 1.6;
+    }}
+    .lp-footer-disclosure-label {{
+        font-weight: 700; color: {colors["text_primary"]};
     }}
 
     /* Sidebar tagline */
