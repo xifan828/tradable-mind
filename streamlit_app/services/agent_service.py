@@ -62,9 +62,18 @@ async def stream_agent_response(
         yield StreamEvent(event_type="done", content=None)
 
     except Exception as e:
+        error_str = str(e)
+        if "free_tier" in error_str.lower() or "free_tier_requests" in error_str:
+            error_message = (
+                "Your Gemini API key is on the free tier, which has very low rate limits "
+                "and is not supported by this application. Please provide a paid-tier API key. "
+                "You can upgrade your plan at https://ai.google.dev/gemini-api/docs/rate-limits."
+            )
+        else:
+            error_message = error_str
         yield StreamEvent(
             event_type="error",
-            content=str(e)
+            content=error_message
         )
 
 

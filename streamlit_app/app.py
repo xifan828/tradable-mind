@@ -102,7 +102,7 @@ def render_front_page():
                 <span class="lp-badge-dot"></span>
                 Powered by Google Gemini 3.0
             </div>
-            <h1 class="lp-title">Tradable Mind: Your AI Thinking Partner<br><span class="lp-title-accent" style="font-size:0.75em;">for Real-Time Market Analysis</span></h1>
+            <h1 class="lp-title">Tradable Mind: Your AI Thinking Partner<br><span class="lp-title-accent" style="font-size:0.75em;">for Real-Time Market Reasoning</span></h1>
             <p class="lp-desc">
                 Multi-agent analysis with specialized Chart &amp; Quant agents.
                 Move beyond black-box signals with institutional-grade reasoning chains
