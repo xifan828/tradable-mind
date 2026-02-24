@@ -206,5 +206,5 @@ def create_context(
         min_research_iterations=min_research_iterations,
         max_research_iterations=max_research_iterations,
         max_concurrent_tasks=max_concurrent_tasks,
-        asset_type=asset_type,
+        asset_type=asset_type.lower() if asset_type else None,
     )

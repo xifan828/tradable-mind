@@ -26,15 +26,6 @@ from streamlit_app.components.chat import (
 from streamlit_app.services.data_service import fetch_cached_data, fetch_daily_change, fetch_pivot_points
 
 
-# Default question prompts for first-time users
-DEFAULT_QUESTIONS = [
-    "What's the overall picture here? Create a trading strategy.",
-    "Analyze the current market structure. What are the critical price levels to watch?",
-    "How strong is the current trend? Is momentum building or fading?",
-    "What does the historical data suggest about the current setup?"
-]
-
-
 # Page configuration - must be first Streamlit command
 st.set_page_config(
     page_title="Tradable Mind - Technical Analysis",
@@ -379,63 +370,101 @@ def render_chat_section(settings: dict):
             icon=":material/key:"
         )
 
-    # Chat input with send button (allows pre-filling from default questions)
     is_streaming = st.session_state.get("is_streaming", False)
 
-    # Only show input controls when not streaming
-    if not is_streaming:
-        # Show default questions for first-time users
-        render_default_questions()
+    # Show welcome message for first-time users
+    if (
+        st.session_state.get("chart_data") is not None
+        and can_chat
+        and not is_streaming
+        and len(st.session_state.messages) == 0
+    ):
+        _is_dark = st.session_state.get("theme_mode", "light") == "dark"
+        if _is_dark:
+            _card_bg    = "linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0f2027 100%)"
+            _card_border = "rgba(99, 179, 116, 0.35)"
+            _card_shadow = "0 4px 32px rgba(0,0,0,0.18)"
+            _glow_bg    = "radial-gradient(circle, rgba(99,179,116,0.12) 0%, transparent 70%)"
+            _title_color = "#f1f5f9"
+            _sub_color  = "#63b374"
+            _body_color = "#94a3b8"
+            _strong_color = "#cbd5e1"
+            _quote_bg   = "rgba(99,179,116,0.08)"
+            _quote_border = "#63b374"
+            _quote_color = "#e2e8f0"
+        else:
+            _card_bg    = "linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%)"
+            _card_border = "rgba(22, 163, 74, 0.35)"
+            _card_shadow = "0 2px 16px rgba(0,0,0,0.07)"
+            _glow_bg    = "radial-gradient(circle, rgba(22,163,74,0.08) 0%, transparent 70%)"
+            _title_color = "#1a1a1a"
+            _sub_color  = "#16a34a"
+            _body_color = "#4b5563"
+            _strong_color = "#111827"
+            _quote_bg   = "rgba(22,163,74,0.07)"
+            _quote_border = "#16a34a"
+            _quote_color = "#374151"
 
-        # Initialize chat_input_area if not present
-        if "chat_input_area" not in st.session_state:
-            st.session_state.chat_input_area = ""
+        st.markdown(f"""
+<div style="
+    background: {_card_bg};
+    border: 1px solid {_card_border};
+    border-radius: 14px;
+    padding: 1.6rem 2rem;
+    margin-bottom: 1rem;
+    box-shadow: {_card_shadow};
+    position: relative;
+    overflow: hidden;
+">
+    <div style="
+        position: absolute; top: -30px; right: -30px;
+        width: 120px; height: 120px;
+        background: {_glow_bg};
+        border-radius: 50%;
+    "></div>
+    <div style="margin-bottom: 0.5rem;">
+        <span style="
+            font-size: 1.25rem; font-weight: 800; letter-spacing: 0.08em;
+            color: {_title_color}; text-transform: uppercase;
+        ">Welcome to Tradable Mind</span>
+    </div>
+    <div style="
+        font-size: 0.95rem; font-weight: 600; color: {_sub_color};
+        margin-bottom: 0.9rem; letter-spacing: 0.02em;
+    ">Your Professional-Grade AI Trading Desk</div>
+    <div style="
+        font-size: 0.875rem; color: {_body_color}; line-height: 1.65;
+        margin-bottom: 1.1rem;
+    ">
+        I am not just a chatbot — I am a specialized research engine that combines
+        <strong style="color:{_strong_color};">visual charting</strong> with
+        <strong style="color:{_strong_color};">statistical validation</strong>
+        to give you an edge in the markets. 
+        <br>
+        You can give me any task. 
+    </div>
+    <div style="
+        background: {_quote_bg};
+        border-left: 3px solid {_quote_border};
+        border-radius: 0 8px 8px 0;
+        padding: 0.65rem 1rem;
+        font-size: 0.85rem; color: {_quote_color}; font-style: italic;
+    ">
+        ✦ &nbsp;<em>Analyze the current market structure and provide a high probability trading strategy.</em>
+        <br>
+        ✦ &nbsp;<em>How does the structure align across multiple timeframes?</em>
+        <br>
+        ✦ &nbsp;<em>How does the asset usually perform on Mondays during the first two hours of the New York session?</em>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-        # Check if we should clear the input (set by send button callback)
-        if st.session_state.get("clear_chat_input", False):
-            st.session_state.chat_input_area = ""
-            st.session_state.clear_chat_input = False
+    prompt = st.chat_input(
+        "Ask about the chart or request analysis...",
+        disabled=not can_chat or is_streaming,
+    )
 
-        # Icon before text input
-        from streamlit_app.utils.styles import LIGHT_COLORS, DARK_COLORS
-        _tm = st.session_state.get("theme_mode", "light")
-        _colors = DARK_COLORS if _tm == "dark" else LIGHT_COLORS
-        st.markdown(
-            f'<div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; color: {_colors["text_primary"]};">'
-            '<span style="font-size: 1rem;">▶</span>'
-            '<span style="font-weight: 500;">Your Message</span>'
-            '</div>',
-            unsafe_allow_html=True
-        )
-
-        # Text area for message input
-        prompt = st.text_area(
-            "Message",
-            placeholder="Ask about the chart or request analysis...",
-            disabled=not can_chat,
-            key="chat_input_area",
-            height=100,
-            label_visibility="collapsed"
-        )
-
-        # Send button
-        col1, col2, col3 = st.columns([5, 1, 5])
-        with col2:
-            send_clicked = st.button(
-                "Send",
-                disabled=not can_chat or not prompt.strip(),
-                use_container_width=True,
-                type="primary"
-            )
-    else:
-        # During streaming, no input controls shown
-        send_clicked = False
-        prompt = ""
-
-    if send_clicked and prompt.strip():
-        # Set flag to clear input on next rerun
-        st.session_state.clear_chat_input = True
-
+    if prompt:
         # Store prompt and set streaming flag, then rerun to disable sidebar
         st.session_state.pending_prompt = prompt.strip()
         st.session_state.pending_prompt_settings = {
@@ -472,79 +501,6 @@ def render_chat_section(settings: dict):
                 current_indicators=prompt_settings["current_indicators"],
                 current_asset_type=prompt_settings.get("current_asset_type"),
             ))
-
-
-def render_default_questions():
-    """
-    Render default question buttons in an expander.
-    Only shown when chart is loaded, API key present, no messages, and not streaming.
-    """
-    # Display conditions
-    show_questions = (
-        st.session_state.get("chart_data") is not None
-        and st.session_state.get("gemini_api_key")
-        and not st.session_state.get("is_streaming", False)
-        and len(st.session_state.messages) == 0
-    )
-
-    if not show_questions:
-        return
-
-    with st.expander("Quick Start Questions", expanded=True, icon=":material/chat:"):
-        st.caption("Click a question to populate the input field, then modify or send as-is.")
-
-        # Wrapper for custom button styling
-        st.markdown('<div class="default-questions-container">', unsafe_allow_html=True)
-
-        # 2x2 grid layout
-        col1, col2 = st.columns(2)
-
-        # Left column: Questions 1 and 3
-        with col1:
-            if st.button(
-                DEFAULT_QUESTIONS[0],
-                key="default_q1",
-                disabled=st.session_state.get("is_streaming", False),
-                use_container_width=True,
-                type="secondary"
-            ):
-                st.session_state.chat_input_area = DEFAULT_QUESTIONS[0]
-                st.rerun()
-
-            if st.button(
-                DEFAULT_QUESTIONS[2],
-                key="default_q3",
-                disabled=st.session_state.get("is_streaming", False),
-                use_container_width=True,
-                type="secondary"
-            ):
-                st.session_state.chat_input_area = DEFAULT_QUESTIONS[2]
-                st.rerun()
-
-        # Right column: Questions 2 and 4
-        with col2:
-            if st.button(
-                DEFAULT_QUESTIONS[1],
-                key="default_q2",
-                disabled=st.session_state.get("is_streaming", False),
-                use_container_width=True,
-                type="secondary"
-            ):
-                st.session_state.chat_input_area = DEFAULT_QUESTIONS[1]
-                st.rerun()
-
-            if st.button(
-                DEFAULT_QUESTIONS[3],
-                key="default_q4",
-                disabled=st.session_state.get("is_streaming", False),
-                use_container_width=True,
-                type="secondary"
-            ):
-                st.session_state.chat_input_area = DEFAULT_QUESTIONS[3]
-                st.rerun()
-
-        # Close wrapper div
-        st.markdown('</div>', unsafe_allow_html=True)
 
 
 def load_chart_data(settings: dict):

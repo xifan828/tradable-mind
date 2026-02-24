@@ -5,10 +5,10 @@ import streamlit as st
 
 # Asset type examples for placeholder text
 ASSET_EXAMPLES = {
-    "forex": "e.g., EUR/USD, GBP/USD, USD/JPY",
-    "commodity": "e.g., XAU/USD, XAG/USD, USOIL",
-    "crypto": "e.g., BTC/USD, ETH/USD, SOL/USD",
-    "stock": "e.g., AAPL, MSFT, GOOGL",
+    "Forex": "e.g., EUR/USD, GBP/USD, USD/JPY",
+    "Commodity": "e.g., XAU/USD, XAG/USD, XBR/USD",
+    "Crypto": "e.g., BTC/USD, ETH/USD, SOL/USD",
+    "Stock": "e.g., AAPL, MSFT, GOOGL",
 }
 
 
@@ -56,9 +56,9 @@ def render_sidebar() -> dict:
 
         asset_type = st.selectbox(
             "Asset Type",
-            options=["forex", "commodity", "crypto", "stock"],
-            index=["forex", "commodity", "crypto", "stock"].index(
-                st.session_state.get("current_asset_type", "forex")
+            options=["Forex", "Commodity", "Crypto", "Stock"],
+            index=["Forex", "Commodity", "Crypto", "Stock"].index(
+                st.session_state.get("current_asset_type", "forex").capitalize()
             ),
             help="Select the asset type for proper market hours filtering",
             disabled=_is_streaming()
@@ -66,9 +66,9 @@ def render_sidebar() -> dict:
 
         symbol = st.text_input(
             "Asset Symbol",
-            value=st.session_state.get("current_symbol", "EUR/USD"),
+            key=f"symbol_input_{asset_type}",
             placeholder=ASSET_EXAMPLES.get(asset_type, ""),
-            help="Enter a valid trading symbol",
+            help="Find valid trading symbol in https://twelvedata.com/",
             disabled=_is_streaming()
         )
 
@@ -77,8 +77,8 @@ def render_sidebar() -> dict:
         with col1:
             interval = st.selectbox(
                 "Interval",
-                options=["1min", "5min", "15min", "30min", "1h", "2h", "4h", "1day", "1week"],
-                index=6,  # Default to 4h
+                options=["5min", "15min", "30min", "1h", "4h", "1day", "1week"],
+                index=4,  # Default to 4h
                 help="Chart timeframe",
                 disabled=_is_streaming()
             )
@@ -165,7 +165,7 @@ def render_sidebar() -> dict:
         gemini_api_key = st.session_state.get("gemini_api_key", "")
         return {
             "gemini_api_key": gemini_api_key,
-            "asset_type": asset_type,
+            "asset_type": asset_type.lower(),
             "symbol": symbol.strip().upper() if symbol else "",
             "interval": interval,
             "chart_size": chart_size,
