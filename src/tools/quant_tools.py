@@ -108,7 +108,7 @@ df[df['Date'] >= df['Date'].max() - pd.Timedelta(days=30)]
         )
 
     except Exception as e:
-        return f"Error downloading data for {ticker}: {str(e)}. Try fix it if you can."
+        return f"Error downloading data for {ticker}: {str(e)}. Fix it, the error most likely is due to an invalid ticker symbol."
     
 _code_executor: ThreadPoolExecutor | None = None
 

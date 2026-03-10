@@ -465,14 +465,15 @@ async def process_user_input(
         indicators_str = format_indicators_for_context(current_indicators or {})
         current_time = datetime.now(timezone.utc).strftime("%Y-%m-%d, %H:%M, %A UTC")
 
-        enhanced_query = f"""<context>
-- Symbol being analyzed: {current_symbol}. Use THIS symbol when delegating tasks to subagents.
+        enhanced_query = f"""User question: {user_input}
+        
+<context>
+- Asset being analyzed: {current_symbol}. **IMPORTANT, strickly use this asset symbol when delegating tasks to subagents.**
 - Chart interval: {current_interval}
 - Technical indicators displayed on chart: {indicators_str}
 - Current time: {current_time}
 </context>
-
-User question: {user_input}"""
+"""
 
         context = create_context(
             gemini_api_key,
