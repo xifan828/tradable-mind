@@ -164,7 +164,7 @@ async def task(
             or "quantitative" for data-driven quantitative analysis.
         task_description: Description of the analysis task to perform.
         chart_analysis_input: Required for chart tasks. Contains asset, interval,
-            indicator type, size, and optional end_date.
+            indicator type, size, and optional end_date. 
 
     Returns:
         The analysis result as a string.
@@ -188,7 +188,7 @@ async def task(
         try:
             return await chart_task.execute()
         except ValueError as e:
-            return f"Error: Unable to fetch data for symbol '{chart_analysis_input.asset}'. {str(e)} Please verify the symbol is valid and supported by the data provider."
+            return f"Error: Unable to fetch data for asset '{chart_analysis_input.asset}'. {str(e)}. Verify the asset symbol. Positive: 'AAPL' for stocks, 'EUR/USD' for forex, 'BTC/USD' for crypto, XAU/USD for commodity."
         except Exception as e:
             error_msg = str(e)
             if "symbol" in error_msg.lower() or "invalid" in error_msg.lower():
