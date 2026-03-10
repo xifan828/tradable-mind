@@ -1,29 +1,3 @@
-# from src.services.technical.technical_analysis_graph import technical_analysis_graph
-# from src.models.technical_analysis_model import TechnicalAnalysisInput
-# from src.models.currency import Currency, CurrencyPair
-
-# pair = CurrencyPair(base=Currency.EUR, quote=Currency.USD)
-# input_data = TechnicalAnalysisInput(
-#     currency_pair=pair,
-#     intervals=["15min", "1h", "4h", "1day"],
-#     size=80,
-#     #end_date="2025-12-24 14:00:00",
-#     analysis_types=["ema"]
-#     #analysis_types=["pivot", "fibonacci", "ema", "rsi", "macd", "atr", "bb"]
-# )
-
-# config = {
-#     "configurable": {
-#         "model_type": "3_flash",
-#         "include_paid_key": True
-#     }
-# }
-
-
-# state = technical_analysis_graph.invoke(
-#     {"input": input_data},
-#     config=configI wan
-# )
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 
