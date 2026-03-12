@@ -199,6 +199,8 @@ def create_context(
     max_research_iterations: int = 6,
     max_concurrent_tasks: int = 4,
     asset_type: str | None = None,
+    model_name: str = "models/gemini-3-flash-preview",
+    subagent_model_name: str = "models/gemini-3-flash-preview",
 ) -> OrchestratorContext:
     """Create an OrchestratorContext with the given API key and settings."""
     return OrchestratorContext(
@@ -207,4 +209,6 @@ def create_context(
         max_research_iterations=max_research_iterations,
         max_concurrent_tasks=max_concurrent_tasks,
         asset_type=asset_type.lower() if asset_type else None,
+        model_name=model_name,
+        subagent_model_name=subagent_model_name,
     )

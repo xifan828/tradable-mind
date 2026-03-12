@@ -175,7 +175,7 @@ async def task(
             return "Error: chart_analysis_input is required for chart analysis tasks."
         chart_context = ChartAgentContext(
             api_key=context.api_key,
-            model_name=context.model_name,
+            model_name=context.subagent_model_name,
             asset_type=context.asset_type
         )
 
@@ -205,7 +205,7 @@ async def task(
 
         quant_context = QuantAgentContext(
             api_key=context.api_key,
-            model_name=context.model_name,
+            model_name=context.subagent_model_name,
             session_data_dir=str(session_data_dir),
             asset_type=context.asset_type,
         )
