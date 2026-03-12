@@ -465,22 +465,28 @@ async def process_user_input(
         indicators_str = format_indicators_for_context(current_indicators or {})
         current_time = datetime.now(timezone.utc).strftime("%Y-%m-%d, %H:%M, %A UTC")
 
-        enhanced_query = f"""User question: {user_input}
+        enhanced_query = f"""{user_input}
         
 <context>
 - Asset being analyzed: {current_symbol}. **IMPORTANT, strickly use this asset symbol when delegating tasks to subagents.**
-- Chart interval: {current_interval}
-- Technical indicators displayed on chart: {indicators_str}
+- Chart interval: {current_interval}. This is my main timeframe.
+- Technical indicators selected: {indicators_str}. Must use these indicators in the analysis.
 - Current time: {current_time}
 </context>
 """
 
+        _label_to_model = {
+            "Gemini 3 Flash": "models/gemini-3-flash-preview",
+            "Gemini 3.1 Pro": "models/gemini-3.1-pro-preview",
+        }
         context = create_context(
             gemini_api_key,
             min_research_iterations=st.session_state.min_research_iterations,
             max_research_iterations=st.session_state.max_research_iterations,
             max_concurrent_tasks=st.session_state.max_concurrent_tasks,
             asset_type=current_asset_type,
+            model_name=_label_to_model.get(st.session_state.get("agent_model_label", "Gemini 3 Flash"), "models/gemini-3-flash-preview"),
+            subagent_model_name=_label_to_model.get(st.session_state.get("subagent_model_label", "Gemini 3 Flash"), "models/gemini-3-flash-preview"),
         )
 
         status_placeholder = st.empty()

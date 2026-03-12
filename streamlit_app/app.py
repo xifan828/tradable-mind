@@ -52,6 +52,8 @@ def initialize_session_state():
         "min_research_iterations": 2,
         "max_research_iterations": 6,
         "max_concurrent_tasks": 4,
+        "agent_model_label": "Gemini 3 Flash",
+        "subagent_model_label": "Gemini 3 Flash",
         # Pending actions (queued during streaming)
         "pending_load_chart": False,
         "pending_clear_conversation": False,
@@ -322,6 +324,30 @@ def render_agent_settings():
 
     with st.expander("Agent Configuration", expanded=True, icon=":material/tune:"):
         st.caption("Settings are applied automatically to the next message.")
+
+        _model_options = ["Gemini 3 Flash", "Gemini 3.1 Pro"]
+        _label_to_model = {
+            "Gemini 3 Flash": "models/gemini-3-flash-preview",
+            "Gemini 3.1 Pro": "models/gemini-3.1-pro-preview",
+        }
+
+        col_orch, col_sub = st.columns(2)
+        with col_orch:
+            st.radio(
+                "Orchestrator Model",
+                options=_model_options,
+                key="agent_model_label",
+                horizontal=False,
+                help="Model used by the orchestrator agent"
+            )
+        with col_sub:
+            st.radio(
+                "Subagent Model",
+                options=_model_options,
+                key="subagent_model_label",
+                horizontal=False,
+                help="Model used by Chart and Quant subagents"
+            )
 
         col1, col2, col3 = st.columns(3)
 

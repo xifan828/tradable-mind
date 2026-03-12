@@ -60,6 +60,7 @@ class OrchestratorState(AgentState):
 class OrchestratorContext:
     api_key: str
     model_name: str = "models/gemini-3-flash-preview"
+    subagent_model_name: str = "models/gemini-3-flash-preview"
     max_research_iterations: int = 5
     max_concurrent_tasks: int = 4
     min_research_iterations: int = 2
