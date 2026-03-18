@@ -164,6 +164,94 @@ class TechnicalIndicatorService:
             return "No extra context for this analysis type."
 
 
+    def get_daily_bars(self, days: int = 20, **kwargs) -> pd.DataFrame:
+        """Return `days` session-aligned daily OHLC bars.
+
+        Stocks use TwelveData 1day API directly.
+        Forex / Commodity / Crypto fetch 1h bars in UTC and aggregate by the true
+        session boundary (5 PM NY for forex, 6 PM NY for commodity, 00:00 UTC for
+        crypto). Weekend sessions are excluded for forex/commodity.
+
+        Args:
+            days: Number of trading days to return.
+
+        Returns:
+            DataFrame with DatetimeIndex (date, tz-naive) and Open/High/Low/Close.
+        """
+        if self.asset_type in (None, "stock"):
+            td = TwelveData(
+                symbol=self.symbol,
+                timezone=self.timezone,
+                interval="1day",
+                asset_type=self.asset_type,
+                outputsize=days + 5,
+                **kwargs,
+            )
+            df = td.get_data()
+            return df.tail(days) if df is not None and not df.empty else df
+
+        return self._aggregate_daily_from_hourly(days, **kwargs)
+
+    def _aggregate_daily_from_hourly(self, days: int, **kwargs) -> pd.DataFrame:
+        """Fetch 1h bars and aggregate into proper session-aligned daily bars.
+
+        Crypto: UTC timezone, day starts at 00:00 UTC, 24 bars.
+        Forex:  NY timezone (DST handled by TwelveData), session starts at 17:00, 24 bars.
+        Commodity: NY timezone, session starts at 18:00, 23 bars (no 17:00 bar).
+
+        The 17:00 (or 18:00) bar on calendar day D belongs to trading date D+1.
+        """
+        is_crypto = self.asset_type == "crypto"
+        fetch_tz = "UTC" if is_crypto else "America/New_York"
+        fetch_size = min(int(days * 24 * 1.5) + 72, 5000)
+
+        td = TwelveData(
+            symbol=self.symbol,
+            timezone=fetch_tz,
+            interval="1h",
+            asset_type=None,
+            outputsize=fetch_size,
+            **kwargs,
+        )
+        df = td.get_data()
+
+        if df is None or df.empty:
+            raise ValueError(f"No hourly data returned for {self.symbol}")
+
+        df = df.copy()
+
+        if is_crypto:
+            # Day boundary at 00:00 UTC — date of the bar is its trading date
+            df["_session_date"] = df.index.normalize().date
+        else:
+            # Bars are timestamped in NY time (tz-naive).
+            # A bar at or after the pivot hour opens the *next* calendar day's session.
+            pivot_hour = 17 if self.asset_type == "forex" else 18
+
+            def _session_date(ts: pd.Timestamp):
+                if ts.hour >= pivot_hour:
+                    return (ts + pd.Timedelta(days=1)).date()
+                return ts.date()
+
+            df["_session_date"] = [_session_date(ts) for ts in df.index]
+
+        daily = df.groupby("_session_date").agg(
+            Open=("Open", "first"),
+            High=("High", "max"),
+            Low=("Low", "min"),
+            Close=("Close", "last"),
+        )
+
+        daily.index = pd.to_datetime(daily.index)
+        daily.index.name = "Date"
+        daily = daily.sort_index()
+
+        # Remove Saturday (5) and Sunday (6)
+        daily = daily[daily.index.dayofweek < 5]
+
+        return daily.tail(days)
+
+
 if __name__ == "__main__":
     size = 80
     analysis_type = "ema"

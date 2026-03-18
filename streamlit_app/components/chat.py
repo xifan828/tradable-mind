@@ -11,6 +11,9 @@ from streamlit_app.services.agent_service import (
     stream_agent_response,
     create_context,
 )
+from src.prompts.user_prompt_template import build_user_prompt
+from src.services.technical import SessionContextService
+from src.services.technical import MarketStatisticsService
 
 
 def initialize_chat_state():
@@ -463,17 +466,30 @@ async def process_user_input(
         st.session_state.pending_tasks = {}
 
         indicators_str = format_indicators_for_context(current_indicators or {})
-        current_time = datetime.now(timezone.utc).strftime("%Y-%m-%d, %H:%M, %A UTC")
 
-        enhanced_query = f"""{user_input}
-        
-<context>
-- Asset being analyzed: {current_symbol}. **IMPORTANT, strickly use this asset symbol when delegating tasks to subagents.**
-- Chart interval: {current_interval}. This is my main timeframe.
-- Technical indicators selected: {indicators_str}. Must use these indicators in the analysis.
-- Current time: {current_time}
-</context>
-"""
+        try:
+            session_svc = SessionContextService()
+            snap = session_svc.get_snapshot(current_symbol, current_asset_type)
+            session_ctx = snap.summary
+        except Exception:
+            session_ctx = "Session data unavailable."
+
+        try:
+            stats_svc = MarketStatisticsService(
+                symbol=current_symbol, timezone="UTC", asset_type=current_asset_type
+            )
+            range_ctx = stats_svc.get_daily_range_context(lookback=20).summary
+        except Exception:
+            range_ctx = "Range data unavailable."
+
+        enhanced_query = build_user_prompt(
+            user_question=user_input,
+            asset=current_symbol,
+            chart_interval=current_interval,
+            technical_indicators=indicators_str,
+            session_context=session_ctx,
+            range_context=range_ctx,
+        )
 
         _label_to_model = {
             "Gemini 3 Flash": "models/gemini-3-flash-preview",

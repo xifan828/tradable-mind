@@ -69,6 +69,18 @@ Orchestrator Agent (Strategic Planner)
 - `src/utils/technical_context.py` - Technical indicator context extraction
 - `src/utils/llm.py` - Gemini API integration
 
+### TwelveData Day Interval — Do Not Use for True Session OHLC
+
+**Do NOT use TwelveData's `1day` interval to obtain today's true session OHLC.** TwelveData's daily bars are offset by 1 hour: their day D bar starts at (D-1) 20:00 UTC in summer instead of the correct (D-1) 21:00 UTC (5:00 PM NY EDT). This means the open, high, and low of the daily bar do not match the true forex/commodity session boundary.
+
+To get the correct session OHLC, always **fetch `1h` bars in UTC and aggregate manually** over the true session window:
+- Forex: (D-1) 21:00 UTC → D 21:00 UTC in summer  /  (D-1) 22:00 UTC → D 22:00 UTC in winter
+- Commodity: (D-1) 22:00 UTC → D 21:00 UTC in summer  /  (D-1) 23:00 UTC → D 22:00 UTC in winter
+- Crypto: D 00:00 UTC → (D+1) 00:00 UTC
+- Stock: use `1day` bars (NYSE/NASDAQ session is well-defined and TwelveData aligns correctly)
+
+The 1h endpoint returns all Sunday bars; Sunday evening bars are the opening bars of Monday's session and must not be filtered before grouping.
+
 ### Supported Indicators
 
 EMA, RSI, MACD, ATR, Bollinger Bands, Pivot Points, Fibonacci Levels
