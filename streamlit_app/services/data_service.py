@@ -4,6 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from src.utils.twelve_data import TwelveData, AssetType
+from src.services.technical.technical_indicator import TechnicalIndicatorService
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -72,24 +73,22 @@ def fetch_daily_change(symbol: str, asset_type: AssetType = None) -> dict | None
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_pivot_points(symbol: str, asset_type: AssetType = None) -> dict | None:
     """
-    Fetch pivot points calculated from daily data.
-
-    Always uses daily OHLC regardless of chart interval.
-    Uses TwelveData's calculate_pivot_points method.
+    Fetch pivot points calculated from the previous completed session's OHLC.
 
     Args:
         symbol: Trading symbol
-        asset_type: Asset type for weekend filtering
+        asset_type: Asset type for session-aligned daily bars
 
     Returns:
         Dictionary with Pivot, R1-R3, S1-S3 levels or None if error
     """
     try:
-        td = TwelveData(
+        svc = TechnicalIndicatorService(
             symbol=symbol,
-            interval="1day",  # Interval doesn't matter, calculate_pivot_points fetches daily
-            asset_type=asset_type
+            timezone="UTC",
+            interval="1day",
+            asset_type=asset_type,
         )
-        return td.calculate_pivot_points()
+        return svc.get_pivot_levels()
     except Exception:
         return None

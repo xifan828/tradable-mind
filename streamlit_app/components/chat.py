@@ -467,6 +467,7 @@ async def process_user_input(
 
         indicators_str = format_indicators_for_context(current_indicators or {})
 
+        snap = None
         try:
             session_svc = SessionContextService()
             snap = session_svc.get_snapshot(current_symbol, current_asset_type)
@@ -478,7 +479,7 @@ async def process_user_input(
             stats_svc = MarketStatisticsService(
                 symbol=current_symbol, timezone="UTC", asset_type=current_asset_type
             )
-            range_ctx = stats_svc.get_daily_range_context(lookback=20).summary
+            range_ctx = stats_svc.get_daily_range_context(lookback=20, is_live=snap.is_live if snap else True).summary
         except Exception:
             range_ctx = "Range data unavailable."
 

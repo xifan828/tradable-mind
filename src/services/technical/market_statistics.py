@@ -50,7 +50,7 @@ class MarketStatisticsService:
     # Daily range context
     # ------------------------------------------------------------------
 
-    def get_daily_range_context(self, lookback: int = 20) -> DailyRangeContext:
+    def get_daily_range_context(self, lookback: int = 20, is_live: bool = True) -> DailyRangeContext:
         """Compare today's range to ATR-based historical statistics.
 
         Uses True Range (not simple H-L) so gaps are accounted for, making
@@ -102,10 +102,15 @@ class MarketStatisticsService:
 
         dp = _decimal_places(avg_range)
 
+        if is_live:
+            current_range_text = f"Today's range so far is {today_range:.{dp}f}, which is {today_range / avg_range * 100:.0f}% of the average daily range."
+        else:
+            current_range_text = f"The last session's range was {today_range:.{dp}f}, which is {today_range / avg_range * 100:.0f}% of the average daily range."
+
         summary = (
             f"Over the past {lookback} sessions, {self.symbol}'s average daily range is {avg_range:.{dp}f}. "
             f"A wide day typically exceeds {wide_threshold:.{dp}f} (75th percentile) and a tight day stays below {tight_threshold:.{dp}f} (25th percentile). "
-            f"Today's range so far is {today_range:.{dp}f}, which is {today_range / avg_range * 100:.0f}% of the average daily range."
+            f"{current_range_text}"
         )
 
         return DailyRangeContext(

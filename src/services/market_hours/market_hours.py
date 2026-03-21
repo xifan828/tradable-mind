@@ -121,7 +121,7 @@ class MarketHoursService:
             if weekday == 6:
                 next_open = at_5pm  # this Sunday 5 PM
             hours_until = _hours_between(utc_now, next_open)
-            utc_str = utc_now.strftime("%H:%M UTC")
+            utc_str = utc_now.strftime("%A %b %d, %H:%M UTC")
             desc = f"Forex market is closed (weekend) - {utc_str}. Reopens Sunday 5:00 PM NY in ~{hours_until:.1f}h."
             return MarketStatus(
                 asset_type=AssetType.FOREX,
@@ -186,7 +186,7 @@ class MarketHoursService:
             if weekday == 6:
                 next_open_day = at_6pm  # this Sunday 6 PM
             hours_until = _hours_between(utc_now, next_open_day)
-            utc_str = utc_now.strftime("%H:%M UTC")
+            utc_str = utc_now.strftime("%A %b %d, %H:%M UTC")
             desc = f"Commodity market is closed (weekend) - {utc_str}. Reopens Sunday 6:00 PM NY in ~{hours_until:.1f}h."
             return MarketStatus(
                 asset_type=AssetType.COMMODITY,
@@ -214,7 +214,7 @@ class MarketHoursService:
         else:
             # 5 PM – 6 PM maintenance break
             minutes_until_open = int((at_6pm - ny_now).total_seconds() / 60)
-            utc_str = utc_now.strftime("%H:%M UTC")
+            utc_str = utc_now.strftime("%A %b %d, %H:%M UTC")
             desc = (
                 f"Commodity market is closed (maintenance break) - {utc_str}. "
                 f"Opens in ~{minutes_until_open} minutes at 6:00 PM NY."
@@ -300,8 +300,9 @@ class MarketHoursService:
         if weekday >= 5:  # Saturday or Sunday
             next_monday_open = market_open + timedelta(days=(7 - weekday))
             hours_until = _hours_between(utc_now, next_monday_open)
+            utc_str_full = utc_now.strftime("%A %b %d, %H:%M UTC")
             desc = (
-                f"US stock market is closed (weekend) - {utc_str}. "
+                f"US stock market is closed (weekend) - {utc_str_full}. "
                 f"Opens Monday 9:30 AM NY in ~{hours_until:.1f}h."
             )
             return MarketStatus(

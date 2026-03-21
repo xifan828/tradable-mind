@@ -58,7 +58,7 @@ class ChartAnalysisTask:
         pivot_levels = None
 
         if self.indicator == "pivot":
-            pivot_levels = service.get_pivot_levels(end_date=self.end_date)
+            pivot_levels = service.get_pivot_levels()
             encoded_chart = service.prepare_chart(
                 df=df,
                 size=self.size,

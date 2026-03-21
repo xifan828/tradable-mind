@@ -51,16 +51,37 @@ class TechnicalIndicatorService:
 
         return data
 
-    def get_pivot_levels(self, **kwargs) -> dict:
-        """Get pivot points calculated from the previous day's OHLC."""
-        td = TwelveData(
-            symbol=self.symbol,
-            timezone=self.timezone,
-            interval="1day",
-            asset_type=self.asset_type,
-            **kwargs
-        )
-        return td.calculate_pivot_points()
+    def get_pivot_levels(self) -> dict | None:
+        """Calculate pivot points from the previous completed session's OHLC.
+
+        Uses get_daily_bars() for proper session-aligned bars. Market status
+        is detected automatically: if open, the last bar is the current partial
+        session so the second-to-last bar is used; if closed, the last bar is
+        already the previous completed session.
+        """
+        from src.services.market_hours.market_hours import MarketHoursService
+
+        df = self.get_daily_bars(days=10)
+        if df is None or len(df) < 2:
+            return None
+
+        status = MarketHoursService().get_status(self.asset_type or "stock")
+        bar = df.iloc[-2] if status.is_open else df.iloc[-1]
+
+        high = float(bar["High"])
+        low = float(bar["Low"])
+        close = float(bar["Close"])
+
+        pivot = (high + low + close) / 3
+        return {
+            "Pivot": pivot,
+            "R1": (2 * pivot) - low,
+            "R2": pivot + (high - low),
+            "R3": high + 2 * (pivot - low),
+            "S1": (2 * pivot) - high,
+            "S2": pivot - (high - low),
+            "S3": low - 2 * (high - pivot),
+        }
 
     def get_fibonacci_levels(self, lookback: int = 50, **kwargs) -> dict:
         """Get Fibonacci retracement levels from recent high/low over lookback period."""

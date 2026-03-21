@@ -19,7 +19,7 @@ session_svc = SessionContextService()
 for sym, atype in [("EUR/USD", "forex"), ("XAU/USD", "commodity"), ("BTC/USD", "crypto"), ("AAPL", "stock")]:
     snap = session_svc.get_snapshot(sym, atype)
     stats_svc = MarketStatisticsService(symbol=sym, timezone="UTC", asset_type=atype)
-    stats = stats_svc.get_daily_range_context(lookback=20)
+    stats = stats_svc.get_daily_range_context(lookback=20, is_live=snap.is_live)
     print("<session-context>")
     print(snap.summary)
     print("</session-context>")
